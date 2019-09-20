@@ -1,0 +1,6 @@
+MX6SABRESD BOARD
+M:	Cristian Albanese <cristian.albanese@sanitaseg.it>
+S:	Maintained
+F:	board/sanitas/ska_management/
+F:	include/configs/ska_management.h
+F:	configs/ska_management_defconfig
