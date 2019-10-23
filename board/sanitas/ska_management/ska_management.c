@@ -590,8 +590,9 @@ int board_eth_init(bd_t *bis)
 	
 	reg=readl(&anatop->pll_enet);
 	printf("pllEnet reg = %x\n",reg);
-	writel((reg|0x1003),&anatop->pll_enet);
-	
+	writel((reg|0x0003),&anatop->pll_enet);
+	reg=readl(&anatop->pll_enet);
+	printf("pllEnet reg = %x\n",reg);
 		
 	
 /*
