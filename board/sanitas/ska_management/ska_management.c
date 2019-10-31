@@ -23,6 +23,7 @@
 #include <mmc.h>
 #include <fsl_esdhc.h>
 #include <miiphy.h>
+#include <phy.h>
 #include <netdev.h>
 #include <asm/arch/mxc_hdmi.h>
 #include <asm/arch/crm_regs.h>
@@ -49,6 +50,7 @@ static char const *board_type = "uninitialized";
 
 #define SPI_PAD_CTRL          (0x80000000 )
 
+int skamngment_switch_config(void);
 
 int dram_init(void)
 {
@@ -324,6 +326,7 @@ int board_phy_config(struct phy_device *phydev)
 	unsigned short val;
 
 #ifdef CONFIG_PHY_LED_TXRX
+	printf("board_phy_config LED CONFIG\n");
 	if (phydev->phy_id == 0x1410dd1) {
 		/*
 		 * Page 3, Register 16: LED[2:0] Function Control Register
@@ -339,6 +342,7 @@ int board_phy_config(struct phy_device *phydev)
 	}
 #endif
 
+	printf("board_phy_config\n");
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
 
@@ -708,6 +712,8 @@ int board_late_init(void)
 	mac_read_from_eeprom();
 #endif
 
+
+
 	int cpurev = get_cpu_rev();
 	setenv("cpu", get_imx_type((cpurev & 0xFF000) >> 12));
 
@@ -783,3 +789,10 @@ int mac_read_from_eeprom(void)
 	return 0;
 }
 #endif	/* CONFIG_SYS_EEPROM_MAC_OFFSET */
+
+
+int skamngment_switch_config(void)
+{
+	miiphy_init(void);
+
+}
