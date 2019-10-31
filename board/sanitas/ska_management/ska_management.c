@@ -346,8 +346,9 @@ int board_phy_config(struct phy_device *phydev)
 	if (phydev->drv->config)
 	{
 		phydev->drv->config(phydev);
+		
 		printf("board_phy_configured\n");
-		skamngment_switch_config();
+		mdio_list_devices();
 	}
 	return 0;
 }
@@ -715,7 +716,6 @@ int board_late_init(void)
 	mac_read_from_eeprom();
 #endif
 
-	skamngment_switch_config();
 
 	int cpurev = get_cpu_rev();
 	setenv("cpu", get_imx_type((cpurev & 0xFF000) >> 12));
