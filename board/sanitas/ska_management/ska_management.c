@@ -344,8 +344,10 @@ int board_phy_config(struct phy_device *phydev)
 
 	printf("board_phy_config\n");
 	if (phydev->drv->config)
+	{
 		phydev->drv->config(phydev);
-
+		printf("board_phy_configured\n");
+	}
 	return 0;
 }
 
@@ -686,7 +688,7 @@ int board_init(void)
 	setup_weim();
 #endif
 
-
+	
 
 	/* Enable ANATOP */
 	//enable_fec_anatop_clock(ENET_50MHz);
@@ -712,7 +714,7 @@ int board_late_init(void)
 	mac_read_from_eeprom();
 #endif
 
-
+	skamngment_switch_config();
 
 	int cpurev = get_cpu_rev();
 	setenv("cpu", get_imx_type((cpurev & 0xFF000) >> 12));
@@ -795,5 +797,6 @@ int skamngment_switch_config(void)
 {
 	miiphy_init();
 	miiphy_set_current_dev("FEC");
+	
 
 }
