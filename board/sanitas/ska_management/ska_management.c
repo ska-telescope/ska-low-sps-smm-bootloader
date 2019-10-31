@@ -349,6 +349,11 @@ int board_phy_config(struct phy_device *phydev)
 		
 		printf("board_phy_configured\n");
 		mdio_list_devices();
+		phy_write(phydev, 0, 0x16, 0x8010);
+		phy_write(phydev, 0, 0x0, 0x7);
+		phy_write(phydev, 0, 0x1, 0x10);
+		phy_write(phydev, 0, 0x1, 0xE03E);
+				
 	}
 	return 0;
 }
