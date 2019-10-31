@@ -793,6 +793,7 @@ int mac_read_from_eeprom(void)
 
 int skamngment_switch_config(void)
 {
-	miiphy_init(void);
+	miiphy_init();
+	miiphy_set_current_dev("FEC");
 
 }
