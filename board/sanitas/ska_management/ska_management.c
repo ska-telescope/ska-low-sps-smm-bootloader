@@ -347,6 +347,7 @@ int board_phy_config(struct phy_device *phydev)
 	{
 		phydev->drv->config(phydev);
 		printf("board_phy_configured\n");
+		skamngment_switch_config();
 	}
 	return 0;
 }
@@ -775,19 +776,26 @@ int checkboard(void)
 #ifdef CONFIG_SYS_EEPROM_MAC_OFFSET
 int mac_read_from_eeprom(void)
 {
+	int retry=0;
 	uchar buf[32];
 	uchar str[32];
 	printf("Reading MAC Address from EEPROM@0x%02x: ", CONFIG_SYS_I2C_EEPROM_ADDR);
 
-	if (eeprom_read(CONFIG_SYS_I2C_EEPROM_ADDR, CONFIG_SYS_EEPROM_MAC_OFFSET, buf, 6)) {
-		printf("Can't load MAC address from eeprom!\n");
-	} else {
-		printf("%02X:%02X:%02X:%02X:%02X:%02X - ", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+	while(retry<10)
+	{	
+		if (eeprom_read(CONFIG_SYS_I2C_EEPROM_ADDR, CONFIG_SYS_EEPROM_MAC_OFFSET, buf, 6)) {
+			
+			retry++;
+		} else {
+			printf("%02X:%02X:%02X:%02X:%02X:%02X - ", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
 
-		eth_setenv_enetaddr("ethaddr", buf);
-		eth_setenv_enetaddr("fec_addr", buf);
+			eth_setenv_enetaddr("ethaddr", buf);
+			eth_setenv_enetaddr("fec_addr", buf);
+			break;
+		}
 	}
-
+	if (retry==10)
+		printf("Can't load MAC address from eeprom!\n");
 	return 0;
 }
 #endif	/* CONFIG_SYS_EEPROM_MAC_OFFSET */
