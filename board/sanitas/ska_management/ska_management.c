@@ -48,6 +48,7 @@
 #endif
 #endif /*CONFIG_FSL_FASTBOOT*/
 
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #define UART_PAD_CTRL  (PAD_CTL_PUS_100K_UP |			\
@@ -90,61 +91,77 @@ int dram_init(void)
 	return 0;
 }
 
+/*UART1*/
 static iomux_v3_cfg_t const uart1_pads[] = {
-	IOMUX_PADS(PAD_CSI0_DAT10__UART1_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
-	IOMUX_PADS(PAD_CSI0_DAT11__UART1_RX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD3_DAT7__UART1_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
+	IOMUX_PADS(PAD_SD3_DAT6__UART1_RX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
 };
 
+/* UART 2 */
+static iomux_v3_cfg_t const uart2_pads[] = {
+	IOMUX_PADS(PAD_GPIO_7__UART2_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
+	IOMUX_PADS(PAD_GPIO_8__UART2_RX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL)),
+};
+
+
+/*Ethernet RGMII*/
 static iomux_v3_cfg_t const enet_pads[] = {
-	IOMUX_PADS(PAD_ENET_MDIO__ENET_MDIO	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_MDC__ENET_MDC	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TXC__RGMII_TXC	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD0__RGMII_TD0	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD1__RGMII_TD1	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD2__RGMII_TD2	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD3__RGMII_TD3	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TX_CTL__RGMII_TX_CTL	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_REF_CLK__ENET_TX_CLK	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RXC__RGMII_RXC	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD0__RGMII_RD0	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD1__RGMII_RD1	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD2__RGMII_RD2	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD3__RGMII_RD3	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RX_CTL__RGMII_RX_CTL	| MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	/* AR8031 PHY Reset */
-	IOMUX_PADS(PAD_ENET_CRS_DV__GPIO1_IO25	| MUX_PAD_CTRL(NO_PAD_CTRL)),
+		IOMUX_PADS(PAD_KEY_COL1__ENET_MDIO        | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_KEY_COL2__ENET_MDC         | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		//MX6_PAD_GPIO_16__ENET_REF_CLK      | MUX_MODE_SION | MUX_PAD_CTRL(ENET_PAD_CTRL| PAD_CTL_SRE_FAST),
+		IOMUX_PADS(PAD_ENET_REF_CLK__ENET_TX_CLK  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_TXC__RGMII_TXC       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_TD0__RGMII_TD0       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_TD1__RGMII_TD1       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_TD2__RGMII_TD2       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_TD3__RGMII_TD3       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_TX_CTL__RGMII_TX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_RXC__RGMII_RXC       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_RD0__RGMII_RD0       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_RD1__RGMII_RD1       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_RD2__RGMII_RD2       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_RD3__RGMII_RD3       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
+		IOMUX_PADS(PAD_RGMII_RX_CTL__RGMII_RX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 };
 
-static void fec_phy_reset(void)
-{
-	/* Reset AR8031 PHY */
-	gpio_request(IMX_GPIO_NR(1, 25), "ENET PHY Reset");
-	gpio_direction_output(IMX_GPIO_NR(1, 25) , 0);
-	mdelay(10);
-	gpio_set_value(IMX_GPIO_NR(1, 25), 1);
-	udelay(100);
-}
 
-static void setup_iomux_enet(void)
-{
-	SETUP_IOMUX_PADS(enet_pads);
-	fec_phy_reset();
-}
 
+
+/* eMMC */
+static iomux_v3_cfg_t const usdhc1_pads[] = {
+		IOMUX_PADS(PAD_SD1_CLK__SD1_CLK	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD1_CMD__SD1_CMD	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD1_DAT0__SD1_DATA0	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD1_DAT1__SD1_DATA1	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD1_DAT2__SD1_DATA2	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD1_DAT3__SD1_DATA3	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_NANDF_D0__SD1_DATA4	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_NANDF_D1__SD1_DATA5	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_NANDF_D2__SD1_DATA6	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_NANDF_D3__SD1_DATA7	  | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_GPIO_1__GPIO1_IO01	  | MUX_PAD_CTRL(NO_PAD_CTRL)), /* !CD */
+		IOMUX_PADS(PAD_GPIO_9__GPIO1_IO09	  | MUX_PAD_CTRL(NO_PAD_CTRL)), /* !WP */
+		IOMUX_PADS(PAD_NANDF_ALE__GPIO6_IO08 | MUX_PAD_CTRL(NO_PAD_CTRL)),  /* !Reset */
+};
+
+
+
+
+/* Panel uSD Card */
 static iomux_v3_cfg_t const usdhc2_pads[] = {
-	IOMUX_PADS(PAD_SD2_CLK__SD2_CLK	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_CMD__SD2_CMD	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DAT0__SD2_DATA0	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DAT1__SD2_DATA1	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DAT2__SD2_DATA2	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD2_DAT3__SD2_DATA3	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D4__SD2_DATA4	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D5__SD2_DATA5	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D6__SD2_DATA6	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D7__SD2_DATA7	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D2__GPIO2_IO02	| MUX_PAD_CTRL(NO_PAD_CTRL)), /* CD */
+		IOMUX_PADS(PAD_SD2_CLK__SD2_CLK	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD2_CMD__SD2_CMD	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD2_DAT0__SD2_DATA0	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD2_DAT1__SD2_DATA1	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD2_DAT2__SD2_DATA2	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_SD2_DAT3__SD2_DATA3	| MUX_PAD_CTRL(USDHC_PAD_CTRL)),
+		IOMUX_PADS(PAD_GPIO_4__GPIO1_IO04	| MUX_PAD_CTRL(NO_PAD_CTRL)), /* !CD */
+		IOMUX_PADS(PAD_GPIO_2__GPIO1_IO02	| MUX_PAD_CTRL(NO_PAD_CTRL)), /* !WP */
 };
 
+
+
+/*
 static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IOMUX_PADS(PAD_SD3_CLK__SD3_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD3_CMD__SD3_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
@@ -156,7 +173,7 @@ static iomux_v3_cfg_t const usdhc3_pads[] = {
 	IOMUX_PADS(PAD_SD3_DAT5__SD3_DATA5 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD3_DAT6__SD3_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD3_DAT7__SD3_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D0__GPIO2_IO00    | MUX_PAD_CTRL(NO_PAD_CTRL)), /* CD */
+	IOMUX_PADS(PAD_NANDF_D0__GPIO2_IO00    | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
 
 static iomux_v3_cfg_t const usdhc4_pads[] = {
@@ -171,27 +188,8 @@ static iomux_v3_cfg_t const usdhc4_pads[] = {
 	IOMUX_PADS(PAD_SD4_DAT6__SD4_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 	IOMUX_PADS(PAD_SD4_DAT7__SD4_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
 };
-
-#ifdef CONFIG_MXC_SPI
-static iomux_v3_cfg_t const ecspi1_pads[] = {
-	IOMUX_PADS(PAD_KEY_COL0__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL)),
-	IOMUX_PADS(PAD_KEY_COL1__ECSPI1_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL)),
-	IOMUX_PADS(PAD_KEY_ROW0__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL)),
-	IOMUX_PADS(PAD_KEY_ROW1__GPIO4_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-
-static void setup_spi(void)
-{
-	SETUP_IOMUX_PADS(ecspi1_pads);
-	gpio_request(IMX_GPIO_NR(4, 9), "ECSPI1 CS");
-}
-
-int board_spi_cs_gpio(unsigned bus, unsigned cs)
-{
-	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 9)) : -1;
-}
-#endif
-
+*/
+/*
 static iomux_v3_cfg_t const rgb_pads[] = {
 	IOMUX_PADS(PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK | MUX_PAD_CTRL(NO_PAD_CTRL)),
 	IOMUX_PADS(PAD_DI0_PIN15__IPU1_DI0_PIN15 | MUX_PAD_CTRL(NO_PAD_CTRL)),
@@ -223,10 +221,51 @@ static iomux_v3_cfg_t const rgb_pads[] = {
 	IOMUX_PADS(PAD_DISP0_DAT22__IPU1_DISP0_DATA22 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 	IOMUX_PADS(PAD_DISP0_DAT23__IPU1_DISP0_DATA23 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
-
+*/
 static iomux_v3_cfg_t const bl_pads[] = {
 	IOMUX_PADS(PAD_SD1_DAT3__GPIO1_IO21 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
+
+
+static void fec_phy_reset(void)
+{
+	/* Reset AR8031 PHY */
+	gpio_request(IMX_GPIO_NR(1, 25), "ENET PHY Reset");
+	gpio_direction_output(IMX_GPIO_NR(1, 25) , 0);
+	mdelay(10);
+	gpio_set_value(IMX_GPIO_NR(1, 25), 1);
+	udelay(100);
+}
+
+static void setup_iomux_enet(void)
+{
+	unsigned int reg;
+	SETUP_IOMUX_PADS(enet_pads);
+	//fec_phy_reset();
+	reg=readl(0x20E0004); //read pinmux IOMUXC_GPR1
+	writel(reg|0x00200000,0x20E0004); //set ENET_CLK_SEL bit
+}
+
+#ifdef CONFIG_MXC_SPI
+static iomux_v3_cfg_t const ecspi1_pads[] = {
+	IOMUX_PADS(PAD_KEY_COL0__ECSPI1_SCLK | MUX_PAD_CTRL(SPI_PAD_CTRL)),
+	IOMUX_PADS(PAD_KEY_COL1__ECSPI1_MISO | MUX_PAD_CTRL(SPI_PAD_CTRL)),
+	IOMUX_PADS(PAD_KEY_ROW0__ECSPI1_MOSI | MUX_PAD_CTRL(SPI_PAD_CTRL)),
+	IOMUX_PADS(PAD_KEY_ROW1__GPIO4_IO09 | MUX_PAD_CTRL(NO_PAD_CTRL)),
+};
+
+static void setup_spi(void)
+{
+	SETUP_IOMUX_PADS(ecspi1_pads);
+	gpio_request(IMX_GPIO_NR(4, 9), "ECSPI1 CS");
+}
+
+int board_spi_cs_gpio(unsigned bus, unsigned cs)
+{
+	return (bus == 0 && cs == 0) ? (IMX_GPIO_NR(4, 9)) : -1;
+}
+#endif
+
 
 static void enable_backlight(void)
 {
@@ -261,6 +300,22 @@ static struct i2c_pads_info i2c_pad_info1 = {
 };
 #endif
 
+
+/* I2C1 */
+static struct i2c_pads_info i2c1_pad_info = {
+	.scl = {
+		.i2c_mode = MX6_PAD_EIM_D21__I2C1_SCL | I2C_PAD,
+		.gpio_mode = MX6_PAD_EIM_D21__GPIO3_IO21 | I2C_PAD,
+		.gp = IMX_GPIO_NR(3, 21)
+	},
+	.sda = {
+		.i2c_mode = MX6_PAD_EIM_D28__I2C1_SDA | I2C_PAD,
+		.gpio_mode = MX6_PAD_EIM_D28__GPIO3_IO28 | I2C_PAD,
+		.gp = IMX_GPIO_NR(3, 28)
+	}
+};
+
+
 #ifdef CONFIG_PCIE_IMX
 iomux_v3_cfg_t const pcie_pads[] = {
 	IOMUX_PADS(PAD_EIM_D19__GPIO3_IO19 | MUX_PAD_CTRL(NO_PAD_CTRL)),	/* POWER */
@@ -284,6 +339,8 @@ iomux_v3_cfg_t const di0_pads[] = {
 static void setup_iomux_uart(void)
 {
 	SETUP_IOMUX_PADS(uart1_pads);
+	SETUP_IOMUX_PADS(uart2_pads);
+	printf("setup iomux \r\n");
 }
 
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
@@ -932,28 +989,36 @@ int board_init(void)
 {
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
+	printf("Board init\n");
 
 #ifdef CONFIG_MXC_SPI
+	printf("board_init: call setup_spi\n");
 	setup_spi();
 #endif
 
 #ifdef CONFIG_SYS_I2C
-	setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
+	//setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
+	printf("board_init: call setup_i2c\n");
+	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c1_pad_info);
 #endif
 
 #ifdef CONFIG_PCIE_IMX
+	printf("board_init: call sesetup_pcie\n");
 	setup_pcie();
 #endif
 
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
+	printf("board_init: call setup_epdc\n");
 	setup_epdc();
 #endif
 
 #ifdef CONFIG_SATA
+	printf("board_init: call setup_sata\n");
 	setup_sata();
 #endif
 
 #ifdef CONFIG_FEC_MXC
+	printf("board_init: call setup_fec\n");
 	setup_fec();
 #endif
 
@@ -966,7 +1031,7 @@ int power_init_board(void)
 	struct pmic *pfuze;
 	unsigned int reg;
 	int ret;
-
+	printf("power_init_board 1\n");
 	pfuze = pfuze_common_init(I2C_PMIC);
 	if (!pfuze)
 		return -ENODEV;
@@ -1052,7 +1117,7 @@ int power_init_board(void)
 	struct udevice *dev;
 	unsigned int reg;
 	int ret;
-
+	printf("power_init_board 2\n");
 	dev = pfuze_common_init();
 	if (!dev)
 		return -ENODEV;
@@ -1367,6 +1432,46 @@ int board_late_init(void)
 int checkboard(void)
 {
 	puts("Board: SKA-MANAGEMENT\n");
+	puts(" _____________________________________________________________________________\n");
+	puts("/                                                                              \\\n");
+	puts("|                              --= Sanitas EG =--                              |\n");
+	puts("|                                                                              |\n");
+	puts("|            _____                    _____                    _____           |\n");
+	puts("|           /\    \                  /\    \                  /\    \          |\n");
+	puts("|          /::\    \                /::\____\                /::\    \         |\n");
+	puts("|         /::::\    \              /:::/    /               /::::\    \        |\n");
+	puts("|        /::::::\    \            /:::/    /               /::::::\    \       |\n");
+	puts("|       /:::/\:::\    \          /:::/    /               /:::/\:::\    \      |\n");
+	puts("|      /:::/__\:::\    \        /:::/____/               /:::/__\:::\    \     |\n");
+	puts("|      \:::\   \:::\    \      /::::\    \              /::::\   \:::\    \    |\n");
+	puts("|    ___\:::\   \:::\    \    /::::::\____\________    /::::::\   \:::\    \   |\n");
+	puts("|   /\   \:::\   \:::\    \  /:::/\:::::::::::\    \  /:::/\:::\   \:::\    \  |\n");
+	puts("|  /::\   \:::\   \:::\____\/:::/  |:::::::::::\____\/:::/  \:::\   \:::\____\ |\n");
+	puts("|  \:::\   \:::\   \::/    /\::/   |::|~~~|~~~~~     \::/    \:::\  /:::/    / |\n");
+	puts("|   \:::\   \:::\   \/____/  \/____|::|   |           \/____/ \:::\/:::/    /  |\n");
+	puts("|    \:::\   \:::\    \            |::|   |                    \::::::/    /   |\n");
+	puts("|     \:::\   \:::\____\           |::|   |                     \::::/    /    |\n");
+	puts("|      \:::\  /:::/    /           |::|   |                     /:::/    /     |\n");
+	puts("|       \:::\/:::/    /            |::|   |                    /:::/    /      |\n");
+	puts("|        \::::::/    /             |::|   |                   /:::/    /       |\n");
+	puts("|         \::::/    /              \::|   |                  /:::/    /        |\n");
+	puts("|          \::/    /                \:|   |                  \::/    /         |\n");
+	puts("|           \/____/                  \|___|                   \/____/          |\n");
+	puts("|                                                                              |\n");
+	puts("|                                                                              |\n");
+	puts("|                                                                              |\n");
+	puts("|                                                                              |\n");
+	puts("|                                                                              |\n");
+	puts("|                                                                              |\n");
+	puts("|                    ~~ More Power To Your Imagination! ~~                     |\n");
+	puts("\\____________________________________________________________________________/\n");
+	puts("       \\\n");
+	puts("        \\   ^__^\n");
+	puts("         \\  (oo)\\_______\n");
+	puts("            (__)\\       )\\/\\\n");
+	puts("             U  ||----w |\n");
+	puts("                ||     ||\n");
+
 	return 0;
 }
 
