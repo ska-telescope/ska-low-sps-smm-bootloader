@@ -69,6 +69,7 @@ DECLARE_GLOBAL_DATA_PTR;
 	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_HYS |	\
 	PAD_CTL_ODE | PAD_CTL_SRE_FAST)
 
+
 #define EPDC_PAD_CTRL    (PAD_CTL_PKE | PAD_CTL_SPEED_MED |	\
 	PAD_CTL_DSE_40ohm | PAD_CTL_HYS)
 
@@ -108,7 +109,7 @@ static iomux_v3_cfg_t const uart2_pads[] = {
 static iomux_v3_cfg_t const enet_pads[] = {
 		IOMUX_PADS(PAD_KEY_COL1__ENET_MDIO        | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 		IOMUX_PADS(PAD_KEY_COL2__ENET_MDC         | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-		//MX6_PAD_GPIO_16__ENET_REF_CLK      | MUX_MODE_SION | MUX_PAD_CTRL(ENET_PAD_CTRL| PAD_CTL_SRE_FAST),
+		IOMUX_PADS(PAD_GPIO_16__ENET_REF_CLK      | MUX_MODE_SION | MUX_PAD_CTRL(ENET_PAD_CTRL| PAD_CTL_SRE_FAST)),
 		IOMUX_PADS(PAD_ENET_REF_CLK__ENET_TX_CLK  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 		IOMUX_PADS(PAD_RGMII_TXC__RGMII_TXC       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 		IOMUX_PADS(PAD_RGMII_TD0__RGMII_TD0       | MUX_PAD_CTRL(ENET_PAD_CTRL)),
@@ -266,17 +267,60 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 }
 #endif
 
-
+/*
 static void enable_backlight(void)
 {
 	SETUP_IOMUX_PADS(bl_pads);
 	gpio_request(DISP0_PWR_EN, "Display Power Enable");
 	gpio_direction_output(DISP0_PWR_EN, 1);
 }
+*/
+
+
+
+static void ethaddr_init(void)
+{
+	u8 mac[6];
+	char mstr[20];
+
+    int ret = 0;
+
+    struct udevice *dev1;
+
+
+	printf("Procedure: ethaddr_init...\n");
+
+	ret = i2c_get_chip_for_busnum(0, 0x51,1, &dev1);
+	if (ret) {
+		printf("%s: Cannot find udev for a bus %d\n", __func__,0);
+		return CMD_RET_FAILURE;
+	}
+
+
+    if (dm_i2c_read(dev1, 0xfa, mac, 6))
+		printf("i2c_read failed\n");
+
+	sprintf(mstr, "%0X:%0X:%0X:%0X:%0X:%0X",mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	printf("ethaddr set to: %s\n", mstr);
+	env_set("ethaddr", mstr);
+
+
+}
+
+
+static void enable_backlight(void)
+{
+	struct iomuxc *iomux = (struct iomuxc *)IOMUXC_BASE_ADDR;
+
+	u32 reg = readl(&iomux->gpr[2]);
+	reg |= IOMUXC_GPR2_DATA_WIDTH_CH0_18BIT | IOMUXC_GPR2_DATA_WIDTH_CH1_18BIT;
+
+	writel(reg, &iomux->gpr[2]);
+}
 
 static void enable_rgb(struct display_info_t const *dev)
 {
-	SETUP_IOMUX_PADS(rgb_pads);
+	//SETUP_IOMUX_PADS(rgb_pads);
 	enable_backlight();
 }
 
@@ -285,8 +329,8 @@ static void enable_lvds(struct display_info_t const *dev)
 	enable_backlight();
 }
 
-#ifdef CONFIG_SYS_I2C
-static struct i2c_pads_info i2c_pad_info1 = {
+/*
+static struct i2c_pads_info i2c3_pad_info = {
 	.scl = {
 		.i2c_mode = MX6_PAD_KEY_COL3__I2C2_SCL | I2C_PAD,
 		.gpio_mode = MX6_PAD_KEY_COL3__GPIO4_IO12 | I2C_PAD,
@@ -298,7 +342,7 @@ static struct i2c_pads_info i2c_pad_info1 = {
 		.gp = IMX_GPIO_NR(4, 13)
 	}
 };
-#endif
+*/
 
 
 /* I2C1 */
@@ -342,6 +386,36 @@ static void setup_iomux_uart(void)
 	SETUP_IOMUX_PADS(uart2_pads);
 	printf("setup iomux \r\n");
 }
+
+
+static void setup_weim(void)
+{
+
+	struct weim  *pweim = (struct weim *)WEIM_BASE_ADDR;
+	int reg;
+
+	setbits_le32(CCM_CCGR6, MXC_CCM_CCGR6_EMI_SLOW_MASK); // Enable Clock
+/*
+	pweim->cs0gcr1 = 0x00610089; // Set registers for CS0
+	pweim->cs0gcr2 = 0x00001000;
+	pweim->cs0rcr1 = 0x1c022000;
+	pweim->cs0rcr2 = 0x00000000;
+	pweim->cs0wcr1 = 0x5c041041;
+	pweim->cs0wcr2 = 0x00000000;
+*/
+	pweim->cs0gcr1 = 0x0061308F; // Set registers for CS0 BCD 4 SWR 1 SRD 1
+	pweim->cs0gcr2 = 0x00001000;
+	pweim->cs0rcr1 = 0x01012000;
+	pweim->cs0rcr2 = 0x00000000;
+	pweim->cs0wcr1 = 0x41041041;
+	pweim->cs0wcr2 = 0x00000000;
+
+	reg=readl(&pweim->wcr);
+
+	writel((reg|0x26),&pweim->wcr);
+
+}
+
 
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
 static iomux_v3_cfg_t const epdc_enable_pads[] = {
@@ -392,14 +466,21 @@ static iomux_v3_cfg_t const epdc_disable_pads[] = {
 #endif
 
 #ifdef CONFIG_FSL_ESDHC
-struct fsl_esdhc_cfg usdhc_cfg[3] = {
+struct fsl_esdhc_cfg usdhc_cfg[2] = {
+	{USDHC1_BASE_ADDR},
 	{USDHC2_BASE_ADDR},
-	{USDHC3_BASE_ADDR},
-	{USDHC4_BASE_ADDR},
+	/*{USDHC4_BASE_ADDR},*/
 };
 
+
+/*
 #define USDHC2_CD_GPIO	IMX_GPIO_NR(2, 2)
 #define USDHC3_CD_GPIO	IMX_GPIO_NR(2, 0)
+*/
+#define USDHC1_CD_GPIO	IMX_GPIO_NR(1, 1)
+#define USDHC2_CD_GPIO	IMX_GPIO_NR(1, 4)
+
+
 
 int board_mmc_get_env_dev(int devno)
 {
@@ -417,12 +498,19 @@ int board_mmc_getcd(struct mmc *mmc)
 	int ret = 0;
 
 	switch (cfg->esdhc_base) {
-	case USDHC2_BASE_ADDR:
-		ret = !gpio_get_value(USDHC2_CD_GPIO);
+	//case USDHC2_BASE_ADDR:
+	case USDHC1_BASE_ADDR:
+		//ret = !gpio_get_value(USDHC2_CD_GPIO);
+		ret = gpio_get_value(USDHC1_CD_GPIO);
 		break;
+	case USDHC2_BASE_ADDR:
+		ret = gpio_get_value(USDHC2_CD_GPIO)?0:1;
+		break;
+/*
 	case USDHC3_BASE_ADDR:
 		ret = !gpio_get_value(USDHC3_CD_GPIO);
 		break;
+	*/
 	case USDHC4_BASE_ADDR:
 		ret = 1; /* eMMC/uSDHC4 is always present */
 		break;
@@ -444,6 +532,7 @@ int board_mmc_init(bd_t *bis)
 	 * mmc1                    SD3
 	 * mmc2                    eMMC
 	 */
+	/*
 	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
 		switch (i) {
 		case 0:
@@ -468,8 +557,39 @@ int board_mmc_init(bd_t *bis)
 			       i + 1, CONFIG_SYS_FSL_USDHC_NUM);
 			return -EINVAL;
 		}
+	 	*/
+	/*
+	 * According to the board_mmc_init() the following map is done:
+	 * (U-Boot device node)    (Physical Port)
+	 * mmc0                    eMMC
+	 * mmc1                    SD
+	 * mmc2                    eMMC
+	 */
+	printf("init_mmc: start for\n");
 
-		ret = fsl_esdhc_initialize(bis, &usdhc_cfg[i]);
+	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
+			switch (i) {
+			case 0:
+				SETUP_IOMUX_PADS(usdhc1_pads);
+				gpio_request(USDHC1_CD_GPIO, "USDHC1 CD");
+				gpio_direction_input(USDHC1_CD_GPIO);
+				usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC_CLK);
+				break;
+			case 1:
+				SETUP_IOMUX_PADS(usdhc2_pads);
+				gpio_request(USDHC2_CD_GPIO, "USDHC2 CD");
+				gpio_direction_input(USDHC2_CD_GPIO);
+				usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
+				break;
+			default:
+				printf("Warning: you configured more USDHC controllers"
+				       "(%d) then supported by the board (%d)\n",
+				       i + 1, CONFIG_SYS_FSL_USDHC_NUM);
+				return -EINVAL;
+			}
+
+
+	ret = fsl_esdhc_initialize(bis, &usdhc_cfg[i]);
 		if (ret)
 			return ret;
 	}
@@ -544,10 +664,25 @@ static int ar8031_phy_fixup(struct phy_device *phydev)
 
 int board_phy_config(struct phy_device *phydev)
 {
-	ar8031_phy_fixup(phydev);
+	/*ar8031_phy_fixup(phydev);*/
 
+	/*
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
+	*/
+	printf("board_phy_config\n");
+	if (phydev->drv->config)
+	{
+		phydev->drv->config(phydev);
+
+		printf("board_phy_configured\n");
+		mdio_list_devices();
+		phy_write(phydev, 0, 0x16, 0x8010);
+		phy_write(phydev, 0, 0x0, 0x7);
+		phy_write(phydev, 0, 0x1, 0x10);
+		phy_write(phydev, 0, 0x1, 0xE03E);
+
+	}
 
 	return 0;
 }
@@ -738,9 +873,11 @@ static void disable_lvds(struct display_info_t const *dev)
 static void do_enable_hdmi(struct display_info_t const *dev)
 {
 	disable_lvds(dev);
-	imx_enable_hdmi_phy();
+	/*imx_enable_hdmi_phy();*/
 }
 
+struct display_info_t const displays[] = {};
+/*
 struct display_info_t const displays[] = {{
 	.bus	= -1,
 	.addr	= 0,
@@ -802,6 +939,8 @@ struct display_info_t const displays[] = {{
 		.sync           = 0,
 		.vmode          = FB_VMODE_NONINTERLACED
 } } };
+
+*/
 size_t display_count = ARRAY_SIZE(displays);
 
 static void setup_display(void)
@@ -811,10 +950,10 @@ static void setup_display(void)
 	int reg;
 
 	/* Setup HSYNC, VSYNC, DISP_CLK for debugging purposes */
-	SETUP_IOMUX_PADS(di0_pads);
+	//SETUP_IOMUX_PADS(di0_pads);
 
 	enable_ipu_clock();
-	imx_setup_hdmi();
+	//imx_setup_hdmi();
 
 	/* Turn on LDB0, LDB1, IPU,IPU DI0 clocks */
 	reg = readl(&mxc_ccm->CCGR3);
@@ -886,7 +1025,25 @@ static void setup_fec(void)
 
 int board_eth_init(bd_t *bis)
 {
+
+	int ret = -ENODEV;
+	char *env = NULL;
+    printf("board_eth_init\n");
 	setup_iomux_enet();
+
+
+	struct mxc_ccm_reg *mxc_ccm = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	struct anatop_regs *anatop = (struct anatop_regs *)ANATOP_BASE_ADDR;
+	int reg;
+
+	reg=readl(&anatop->pll_enet);
+	printf("pllEnet reg1 = %x\n",reg);
+	//writel((reg|0x0003),&anatop->pll_enet);
+	reg=readl(&anatop->pll_enet);
+	printf("pllEnet reg2 = %x\n",reg);
+
+
+
 	return cpu_eth_init(bis);
 }
 
@@ -996,32 +1153,38 @@ int board_init(void)
 	setup_spi();
 #endif
 
-#ifdef CONFIG_SYS_I2C
+#ifdef CONFIG_CMD_I2C
 	//setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
 	printf("board_init: call setup_i2c\n");
 	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c1_pad_info);
 #endif
+	printf("board_init: call setup_weim\n");
+	setup_weim();
 
+/*
 #ifdef CONFIG_PCIE_IMX
 	printf("board_init: call sesetup_pcie\n");
 	setup_pcie();
 #endif
-
+*/
+/*
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
 	printf("board_init: call setup_epdc\n");
 	setup_epdc();
 #endif
-
+*/
+/*
 #ifdef CONFIG_SATA
 	printf("board_init: call setup_sata\n");
 	setup_sata();
 #endif
-
+*/
+/*
 #ifdef CONFIG_FEC_MXC
 	printf("board_init: call setup_fec\n");
 	setup_fec();
 #endif
-
+*/
 	return 0;
 }
 
@@ -1393,9 +1556,10 @@ void ldo_mode_set(int ldo_bypass)
 static const struct boot_mode board_boot_modes[] = {
 	/* 4 bit bus width */
 	{"sd2",	 MAKE_CFGVAL(0x40, 0x28, 0x00, 0x00)},
-	{"sd3",	 MAKE_CFGVAL(0x40, 0x30, 0x00, 0x00)},
+	/*{"sd3",	 MAKE_CFGVAL(0x40, 0x30, 0x00, 0x00)},*/
 	/* 8 bit bus width */
-	{"emmc", MAKE_CFGVAL(0x60, 0x58, 0x00, 0x00)},
+	/*{"emmc", MAKE_CFGVAL(0x60, 0x58, 0x00, 0x00)},*/
+	{"emmc", MAKE_CFGVAL(0x60, 0x20, 0x00, 0x00)},
 	{NULL,	 0},
 };
 #endif
@@ -1422,16 +1586,19 @@ int board_late_init(void)
 		env_set("board_rev", "MX6DL");
 #endif
 
+	ethaddr_init();
+
+/*
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();
 #endif
-
+*/
 	return 0;
 }
 
 int checkboard(void)
 {
-	puts("Board: SKA-MANAGEMENT\n");
+
 	puts(" _____________________________________________________________________________\n");
 	puts("/                                                                              \\\n");
 	puts("|                              --= Sanitas EG =--                              |\n");
