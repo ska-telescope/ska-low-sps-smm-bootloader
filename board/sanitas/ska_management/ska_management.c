@@ -161,68 +161,6 @@ static iomux_v3_cfg_t const usdhc2_pads[] = {
 };
 
 
-
-/*
-static iomux_v3_cfg_t const usdhc3_pads[] = {
-	IOMUX_PADS(PAD_SD3_CLK__SD3_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_CMD__SD3_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT0__SD3_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT1__SD3_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT2__SD3_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT3__SD3_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT4__SD3_DATA4 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT5__SD3_DATA5 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT6__SD3_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD3_DAT7__SD3_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_NANDF_D0__GPIO2_IO00    | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-
-static iomux_v3_cfg_t const usdhc4_pads[] = {
-	IOMUX_PADS(PAD_SD4_CLK__SD4_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_CMD__SD4_CMD   | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT0__SD4_DATA0 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT1__SD4_DATA1 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT2__SD4_DATA2 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT3__SD4_DATA3 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT4__SD4_DATA4 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT5__SD4_DATA5 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT6__SD4_DATA6 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-	IOMUX_PADS(PAD_SD4_DAT7__SD4_DATA7 | MUX_PAD_CTRL(USDHC_PAD_CTRL)),
-};
-*/
-/*
-static iomux_v3_cfg_t const rgb_pads[] = {
-	IOMUX_PADS(PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DI0_PIN15__IPU1_DI0_PIN15 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DI0_PIN2__IPU1_DI0_PIN02 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DI0_PIN3__IPU1_DI0_PIN03 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DI0_PIN4__IPU1_DI0_PIN04 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT0__IPU1_DISP0_DATA00 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT1__IPU1_DISP0_DATA01 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT2__IPU1_DISP0_DATA02 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT3__IPU1_DISP0_DATA03 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT4__IPU1_DISP0_DATA04 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT5__IPU1_DISP0_DATA05 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT6__IPU1_DISP0_DATA06 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT7__IPU1_DISP0_DATA07 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT8__IPU1_DISP0_DATA08 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT9__IPU1_DISP0_DATA09 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT10__IPU1_DISP0_DATA10 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT11__IPU1_DISP0_DATA11 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT12__IPU1_DISP0_DATA12 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT13__IPU1_DISP0_DATA13 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT14__IPU1_DISP0_DATA14 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT15__IPU1_DISP0_DATA15 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT16__IPU1_DISP0_DATA16 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT17__IPU1_DISP0_DATA17 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT18__IPU1_DISP0_DATA18 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT19__IPU1_DISP0_DATA19 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT20__IPU1_DISP0_DATA20 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT21__IPU1_DISP0_DATA21 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT22__IPU1_DISP0_DATA22 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-	IOMUX_PADS(PAD_DISP0_DAT23__IPU1_DISP0_DATA23 | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
-*/
 static iomux_v3_cfg_t const bl_pads[] = {
 	IOMUX_PADS(PAD_SD1_DAT3__GPIO1_IO21 | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
@@ -335,21 +273,6 @@ static void enable_lvds(struct display_info_t const *dev)
 {
 	enable_backlight();
 }
-
-/*
-static struct i2c_pads_info i2c3_pad_info = {
-	.scl = {
-		.i2c_mode = MX6_PAD_KEY_COL3__I2C2_SCL | I2C_PAD,
-		.gpio_mode = MX6_PAD_KEY_COL3__GPIO4_IO12 | I2C_PAD,
-		.gp = IMX_GPIO_NR(4, 12)
-	},
-	.sda = {
-		.i2c_mode = MX6_PAD_KEY_ROW3__I2C2_SDA | I2C_PAD,
-		.gpio_mode = MX6_PAD_KEY_ROW3__GPIO4_IO13 | I2C_PAD,
-		.gp = IMX_GPIO_NR(4, 13)
-	}
-};
-*/
 
 
 /* I2C1 */
@@ -549,46 +472,6 @@ int board_mmc_init(bd_t *bis)
 	int ret;
 	int i;
 
-	/*
-	 * According to the board_mmc_init() the following map is done:
-	 * (U-Boot device node)    (Physical Port)
-	 * mmc0                    SD2
-	 * mmc1                    SD3
-	 * mmc2                    eMMC
-	 */
-	/*
-	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
-		switch (i) {
-		case 0:
-			SETUP_IOMUX_PADS(usdhc2_pads);
-			gpio_request(USDHC2_CD_GPIO, "USDHC2 CD");
-			gpio_direction_input(USDHC2_CD_GPIO);
-			usdhc_cfg[0].sdhc_clk = mxc_get_clock(MXC_ESDHC2_CLK);
-			break;
-		case 1:
-			SETUP_IOMUX_PADS(usdhc3_pads);
-			gpio_request(USDHC3_CD_GPIO, "USDHC3 CD");
-			gpio_direction_input(USDHC3_CD_GPIO);
-			usdhc_cfg[1].sdhc_clk = mxc_get_clock(MXC_ESDHC3_CLK);
-			break;
-		case 2:
-			SETUP_IOMUX_PADS(usdhc4_pads);
-			usdhc_cfg[2].sdhc_clk = mxc_get_clock(MXC_ESDHC4_CLK);
-			break;
-		default:
-			printf("Warning: you configured more USDHC controllers"
-			       "(%d) then supported by the board (%d)\n",
-			       i + 1, CONFIG_SYS_FSL_USDHC_NUM);
-			return -EINVAL;
-		}
-	 	*/
-	/*
-	 * According to the board_mmc_init() the following map is done:
-	 * (U-Boot device node)    (Physical Port)
-	 * mmc0                    eMMC
-	 * mmc1                    SD
-	 * mmc2                    eMMC
-	 */
 	printf("init_mmc: start for\n");
 
 	for (i = 0; i < CONFIG_SYS_FSL_USDHC_NUM; i++) {
@@ -901,70 +784,7 @@ static void do_enable_hdmi(struct display_info_t const *dev)
 }
 
 struct display_info_t const displays[] = {};
-/*
-struct display_info_t const displays[] = {{
-	.bus	= -1,
-	.addr	= 0,
-	.pixfmt	= IPU_PIX_FMT_RGB666,
-	.detect	= NULL,
-	.enable	= enable_lvds,
-	.mode	= {
-		.name           = "Hannstar-XGA",
-		.refresh        = 60,
-		.xres           = 1024,
-		.yres           = 768,
-		.pixclock       = 15384,
-		.left_margin    = 160,
-		.right_margin   = 24,
-		.upper_margin   = 29,
-		.lower_margin   = 3,
-		.hsync_len      = 136,
-		.vsync_len      = 6,
-		.sync           = FB_SYNC_EXT,
-		.vmode          = FB_VMODE_NONINTERLACED
-} }, {
-	.bus	= -1,
-	.addr	= 0,
-	.pixfmt	= IPU_PIX_FMT_RGB24,
-	.detect	= NULL,
-	.enable	= do_enable_hdmi,
-	.mode	= {
-		.name           = "HDMI",
-		.refresh        = 60,
-		.xres           = 640,
-		.yres           = 480,
-		.pixclock       = 39721,
-		.left_margin    = 48,
-		.right_margin   = 16,
-		.upper_margin   = 33,
-		.lower_margin   = 10,
-		.hsync_len      = 96,
-		.vsync_len      = 2,
-		.sync           = 0,
-		.vmode          = FB_VMODE_NONINTERLACED
-} }, {
-	.bus	= 0,
-	.addr	= 0,
-	.pixfmt	= IPU_PIX_FMT_RGB24,
-	.detect	= NULL,
-	.enable	= enable_rgb,
-	.mode	= {
-		.name           = "SEIKO-WVGA",
-		.refresh        = 60,
-		.xres           = 800,
-		.yres           = 480,
-		.pixclock       = 29850,
-		.left_margin    = 89,
-		.right_margin   = 164,
-		.upper_margin   = 23,
-		.lower_margin   = 10,
-		.hsync_len      = 10,
-		.vsync_len      = 10,
-		.sync           = 0,
-		.vmode          = FB_VMODE_NONINTERLACED
-} } };
 
-*/
 size_t display_count = ARRAY_SIZE(displays);
 
 static void setup_display(void)
@@ -1629,48 +1449,37 @@ int board_late_init(void)
 int checkboard(void)
 {
 
-	puts(" _____________________________________________________________________________\n");
-	puts("/                                                                              \\\n");
-	puts("|                              --= Sanitas EG =--                              |\n");
-	puts("|                                                                              |\n");
-	puts("|            _____                    _____                    _____           |\n");
-	puts("|           /\    \                  /\    \                  /\    \          |\n");
-	puts("|          /::\    \                /::\____\                /::\    \         |\n");
-	puts("|         /::::\    \              /:::/    /               /::::\    \        |\n");
-	puts("|        /::::::\    \            /:::/    /               /::::::\    \       |\n");
-	puts("|       /:::/\:::\    \          /:::/    /               /:::/\:::\    \      |\n");
-	puts("|      /:::/__\:::\    \        /:::/____/               /:::/__\:::\    \     |\n");
-	puts("|      \:::\   \:::\    \      /::::\    \              /::::\   \:::\    \    |\n");
-	puts("|    ___\:::\   \:::\    \    /::::::\____\________    /::::::\   \:::\    \   |\n");
-	puts("|   /\   \:::\   \:::\    \  /:::/\:::::::::::\    \  /:::/\:::\   \:::\    \  |\n");
-	puts("|  /::\   \:::\   \:::\____\/:::/  |:::::::::::\____\/:::/  \:::\   \:::\____\ |\n");
-	puts("|  \:::\   \:::\   \::/    /\::/   |::|~~~|~~~~~     \::/    \:::\  /:::/    / |\n");
-	puts("|   \:::\   \:::\   \/____/  \/____|::|   |           \/____/ \:::\/:::/    /  |\n");
-	puts("|    \:::\   \:::\    \            |::|   |                    \::::::/    /   |\n");
-	puts("|     \:::\   \:::\____\           |::|   |                     \::::/    /    |\n");
-	puts("|      \:::\  /:::/    /           |::|   |                     /:::/    /     |\n");
-	puts("|       \:::\/:::/    /            |::|   |                    /:::/    /      |\n");
-	puts("|        \::::::/    /             |::|   |                   /:::/    /       |\n");
-	puts("|         \::::/    /              \::|   |                  /:::/    /        |\n");
-	puts("|          \::/    /                \:|   |                  \::/    /         |\n");
-	puts("|           \/____/                  \|___|                   \/____/          |\n");
-	puts("|                                                                              |\n");
-	puts("|                                                                              |\n");
-	puts("|                                                                              |\n");
-	puts("|                                                                              |\n");
-	puts("|                                                                              |\n");
-	puts("|                                                                              |\n");
-	puts("|                    ~~ More Power To Your Imagination! ~~                     |\n");
-	puts("\\____________________________________________________________________________/\n");
-	puts("       \\\n");
-	puts("        \\   ^__^\n");
-	puts("         \\  (oo)\\_______\n");
-	puts("            (__)\\       )\\/\\\n");
-	puts("             U  ||----w |\n");
-	puts("                ||     ||\n");
 
+	    puts(" ____________________________________________________\n");
+		puts("/                                                    \\\n");
+		puts("|              --= Sanitas EG =--                    |\n");
+		puts("|                                                    |\n");
+		puts("|      _  _  _  _    _           _        _          |\n");
+		puts("|    _(_)(_)(_)(_)_ (_)       _ (_)     _(_)_        |\n");
+		puts("|   (_)          (_)(_)    _ (_)      _(_) (_)_      |\n");
+		puts("|   (_)_  _  _  _   (_) _ (_)       _(_)     (_)_    |\n");
+		puts("|     (_)(_)(_)(_)_ (_)(_) _       (_) _  _  _ (_)   |\n");
+		puts("|    _           (_)(_)   (_) _    (_)(_)(_)(_)(_)   |\n");
+		puts("|   (_)_  _  _  _(_)(_)      (_) _ (_)         (_)   |\n");
+		puts("|     (_)(_)(_)(_)  (_)         (_)(_)         (_)   |\n");
+		puts("|                                                    |\n");
+		puts("|                                                    |\n");
+		puts("|                                                    |\n");
+		puts("|                                                    |\n");
+		puts("|    ~~ More Power To Your Imagination! ~~           |\n");
+		puts("\\___________________________________________________/\n");
+		puts("       \\\n");
+		puts("        \\   ^__^\n");
+		puts("         \\  (oo)\\_______\n");
+		puts("            (__)\\       )\\/\\\n");
+		puts("             U  ||----w |\n");
+		puts("                ||     ||\n");
 	return 0;
 }
+
+
+
+
 
 #ifdef CONFIG_FSL_FASTBOOT
 #ifdef CONFIG_ANDROID_RECOVERY
