@@ -38,6 +38,7 @@ void board_late_mmc_env_init(void)
 	if (!check_mmc_autodetect())
 		return;
 
+
 	env_set_ulong("mmcdev", dev_no);
 
 	/* Set mmcblk env */

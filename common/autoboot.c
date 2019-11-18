@@ -278,6 +278,7 @@ static void process_fdt_options(const void *blob)
 {
 #if defined(CONFIG_OF_CONTROL) && defined(CONFIG_SYS_TEXT_BASE)
 	ulong addr;
+	printf("process_fdt_options\n");
 
 	/* Add an env variable to point to a kernel payload, if available */
 	addr = fdtdec_get_config_int(gd->fdt_blob, "kernel-offset", 0);
@@ -308,6 +309,7 @@ const char *bootdelay_process(void)
 	bootlimit = env_get_ulong("bootlimit", 10, 0);
 #endif /* CONFIG_BOOTCOUNT_LIMIT */
 
+	printf("process_bootdelay\n");
 	s = env_get("bootdelay");
 	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
 
@@ -368,6 +370,7 @@ const char *bootdelay_process(void)
 void autoboot_command(const char *s)
 {
 	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
+	printf("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (stored_bootdelay != -1 && s && !abortboot(stored_bootdelay)) {
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)

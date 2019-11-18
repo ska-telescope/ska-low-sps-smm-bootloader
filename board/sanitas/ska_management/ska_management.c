@@ -1599,6 +1599,7 @@ int board_late_init(void)
 	env_set("tee", "yes");
 #endif
 
+	//env_set("board_rev", "MX6QP");
 #ifdef CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG
 	env_set("board_name", "SKA_MANAGEMENT");
 
@@ -1614,11 +1615,14 @@ int board_late_init(void)
 
 	get_weim_info();
 
-/*
-#ifdef CONFIG_ENV_IS_IN_MMC
-	board_late_mmc_env_init();
-#endif
-*/
+
+//#ifdef CONFIG_ENV_IS_IN_MMC
+	//board_late_mmc_env_init();
+	//env_set("mmcdev", "1");
+	//env_set("mmcroot","/dev/mmcblk1p2 rootwait rw");
+	env_set("bootcmd",CONFIG_BOOTCOMMAND);
+//#endif
+
 	return 0;
 }
 
