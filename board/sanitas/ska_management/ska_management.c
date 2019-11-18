@@ -284,7 +284,7 @@ static void ethaddr_init(void)
 	char mstr[20];
 
     int ret = 0;
-
+    int retry=5;
     struct udevice *dev1;
 
 
@@ -297,10 +297,17 @@ static void ethaddr_init(void)
 	}
 
 
-    if (dm_i2c_read(dev1, 0xfa, mac, 6))
-		printf("i2c_read failed\n");
+	while(retry > 0)
+	{
+		if (dm_i2c_read(dev1, 0xfa, mac, 6))
+		{	printf("i2c_read failed\n");
+			retry--;
+		}
+		else
+			break;
+	}
 
-	sprintf(mstr, "%0X:%0X:%0X:%0X:%0X:%0X",mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    sprintf(mstr, "%0X:%0X:%0X:%0X:%0X:%0X",mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	printf("ethaddr set to: %s\n", mstr);
 	env_set("ethaddr", mstr);
 
@@ -413,6 +420,23 @@ static void setup_weim(void)
 	reg=readl(&pweim->wcr);
 
 	writel((reg|0x26),&pweim->wcr);
+
+}
+
+#define FPGA_REGS_BA 0x8000000;
+struct fpga_regs{
+	u32 build_info;
+	u32 build_date;
+};
+
+static void get_weim_info()
+{
+	u32 reg,reg1;
+	struct fpga_regs *pfpga_regs=(struct fpga_regs *)FPGA_REGS_BA;
+	printf("Trying to read from EIM \n");
+	reg=readl(&pfpga_regs->build_info);
+	reg1=readl(&pfpga_regs->build_date);
+	printf( "FPGA_INFO %x %x\n",reg,reg1);
 
 }
 
@@ -1587,6 +1611,8 @@ int board_late_init(void)
 #endif
 
 	ethaddr_init();
+
+	get_weim_info();
 
 /*
 #ifdef CONFIG_ENV_IS_IN_MMC

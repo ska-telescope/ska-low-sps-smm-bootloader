@@ -37,6 +37,8 @@
 #endif
 
 /* MMC Configs */
+#define CONFIG_ENV_IS_IN_MMC
+#undef CONFIG_SUPPORT_EMMC_BOOT
 /*#define CONFIG_FSL_ESDHC*/
 #define CONFIG_FSL_USDHC
 #define CONFIG_SYS_FSL_ESDHC_ADDR      0
@@ -95,9 +97,10 @@
 
 #define CONFIG_MFG_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS_DEFAULT \
+	"echo CONFIG_MFG_ENV_SETTINGS " \
 	"initrd_addr=0x12C00000\0" \
 	"initrd_high=0xffffffff\0" \
-	"emmc_dev=2\0"\
+	"emmc_dev=0\0"\
 	"sd_dev=1\0" \
 	"weim_uboot=0x08001000\0"\
 	"weim_base=0x08000000\0"\
@@ -223,6 +226,7 @@
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONFIG_MFG_ENV_SETTINGS \
 	TEE_ENV \
+	"echo Bubs ...;" \
 	"epdc_waveform=epdc_splash.bin\0" \
 	"script=boot.scr\0" \
 	"image=zImage\0" \
@@ -354,6 +358,7 @@
 			"fi;\0" \
 
 #define CONFIG_BOOTCOMMAND \
+	"echo BOOT from BOOTCOMMAND... ;" \
 	"run findfdt;" \
 	"run findtee;" \
 	"mmc dev ${mmcdev};" \
