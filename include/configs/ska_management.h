@@ -124,7 +124,7 @@
 	"fdt_addr=0x18000000\0" \
 	"fdt_high=0xffffffff\0" \
 	"initrd_high=0xffffffff\0" \
-	"fdt_file=imx6q-ska-management-mng.dtb\0" \
+	"fdt_file=ska-management.dtb\0" \
 	"boot_fdt=yes\0" \
 	"ip_dyn=yes\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
