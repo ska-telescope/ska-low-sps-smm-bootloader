@@ -254,7 +254,7 @@ int print_cpuinfo(void)
 #define CMC_SRS_POR                       (1 << 1)
 #define CMC_SRS_WUP                       (1 << 0)
 
-static u32 reset_cause = -1;
+u32 reset_cause = -1;
 
 static char *get_reset_cause(char *ret)
 {

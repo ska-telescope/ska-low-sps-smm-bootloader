@@ -86,6 +86,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define KEY_VOL_UP	IMX_GPIO_NR(1, 4)
 
+extern u32 reset_cause;
+
 int dram_init(void)
 {
 	gd->ram_size = imx_ddr_size();
@@ -169,10 +171,17 @@ static iomux_v3_cfg_t const bl_pads[] = {
 static void fec_phy_reset(void)
 {
 	/* Reset AR8031 PHY */
+	/*
 	gpio_request(IMX_GPIO_NR(1, 25), "ENET PHY Reset");
 	gpio_direction_output(IMX_GPIO_NR(1, 25) , 0);
 	mdelay(10);
 	gpio_set_value(IMX_GPIO_NR(1, 25), 1);
+	udelay(100);
+	*/
+	gpio_request(IMX_GPIO_NR(4, 29), "ENET PHY Reset");
+	gpio_direction_output(IMX_GPIO_NR(4, 29) , 0);
+	mdelay(10);
+	gpio_set_value(IMX_GPIO_NR(4, 29), 1);
 	udelay(100);
 }
 
@@ -180,7 +189,7 @@ static void setup_iomux_enet(void)
 {
 	unsigned int reg;
 	SETUP_IOMUX_PADS(enet_pads);
-	//fec_phy_reset();
+	fec_phy_reset();
 	reg=readl(0x20E0004); //read pinmux IOMUXC_GPR1
 	writel(reg|0x00200000,0x20E0004); //set ENET_CLK_SEL bit
 }
@@ -318,6 +327,65 @@ static void setup_iomux_uart(void)
 }
 
 
+
+
+#define CMC_SRS_TAMPER                    (1 << 31)
+#define CMC_SRS_SECURITY                  (1 << 30)
+#define CMC_SRS_TZWDG                     (1 << 29)
+#define CMC_SRS_JTAG_RST                  (1 << 28)
+#define CMC_SRS_CORE1                     (1 << 16)
+#define CMC_SRS_LOCKUP                    (1 << 15)
+#define CMC_SRS_SW                        (1 << 14)
+#define CMC_SRS_WDG                       (1 << 13)
+#define CMC_SRS_PIN_RESET                 (1 << 8)
+#define CMC_SRS_WARM                      (1 << 4)
+#define CMC_SRS_HVD                       (1 << 3)
+#define CMC_SRS_LVD                       (1 << 2)
+#define CMC_SRS_POR                       (1 << 1)
+#define CMC_SRS_WUP                       (1 << 0)
+static char * get_reset_cause_local()
+{
+
+	u32 cause;
+
+	u32 *reg_srsr = (u32 *)(SRC_BASE_ADDR + 0x8);
+
+	cause = readl(reg_srsr);
+
+
+	//cause = readl(&src_regs->srsr);
+	printf("Reset cause reg %x\n",cause);
+	printf("Reset cause from ext variable: %x\n",reset_cause);
+	switch (reset_cause) {
+	case 0x00001:
+	case 0x00011:
+		return "POR";
+	case 0x00004:
+		return "CSU";
+	case 0x00008:
+		return "IPP USER";
+	case 0x00010:
+		return "WDOG";
+	case 0x00020:
+		return "JTAG HIGH-Z";
+	case 0x00040:
+		return "JTAG SW";
+	case 0x00080:
+		return "WDOG3";
+	case 0x00100:
+		return "TEMPSENSE";
+	case 0x10000:
+		return "WARM BOOT";
+	default:
+		return "unknown reset";
+	}
+
+}
+
+
+
+
+
 static void setup_weim(void)
 {
 
@@ -350,17 +418,36 @@ static void setup_weim(void)
 struct fpga_regs{
 	u32 build_info;
 	u32 build_date;
+	u32 fw_version;
 };
 
 static void get_weim_info()
 {
-	u32 reg,reg1;
+	u32 reg,reg1,reg2,hwrev;
+	u32 hwrev_add=FPGA_REGS_BA+0x124;
+	u32 sw_reset=FPGA_REGS_BA+0x700;
 	struct fpga_regs *pfpga_regs=(struct fpga_regs *)FPGA_REGS_BA;
+
 	printf("Trying to read from EIM \n");
 	reg=readl(&pfpga_regs->build_info);
 	reg1=readl(&pfpga_regs->build_date);
 	printf( "FPGA_INFO %x %x\n",reg,reg1);
-
+	printf("FW Ver: %x \n",reg2);
+	hwrev=readl(hwrev_add);
+	printf("HW REV: %x \n",hwrev);
+	/* add here SW1  reset sequence*/
+	printf("Resetting switch... \n");
+	writel(0x0,sw_reset);
+	mdelay(500);
+	writel(0x1,sw_reset);
+	gpio_request(IMX_GPIO_NR(4, 30), "SWITCH Reset");
+	gpio_direction_output(IMX_GPIO_NR(4, 30) , 0);
+	mdelay(10);
+	gpio_set_value(IMX_GPIO_NR(4, 30), 0);
+	mdelay(10);
+	gpio_set_value(IMX_GPIO_NR(4, 30), 1);
+	udelay(100);
+	printf("Resetting complete \n");
 }
 
 
@@ -577,18 +664,33 @@ int board_phy_config(struct phy_device *phydev)
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
 	*/
+	char *reset_src;
+
 	printf("board_phy_config\n");
 	if (phydev->drv->config)
 	{
 		phydev->drv->config(phydev);
 
-		printf("board_phy_configured\n");
-		mdio_list_devices();
-		phy_write(phydev, 0, 0x16, 0x8010);
-		phy_write(phydev, 0, 0x0, 0x7);
-		phy_write(phydev, 0, 0x1, 0x10);
-		phy_write(phydev, 0, 0x1, 0xE03E);
 
+		mdio_list_devices();
+		reset_src=get_reset_cause_local();
+		printf("Detected reset cause: %s\n",reset_src);
+		if (reset_src!="POR")
+		{
+			int reg=phy_read(phydev, 0x1b, 0x4);
+			printf("Global switch reg1 port 4 value: %x\n",reg);
+			phy_write(phydev, 0x1b, 0x4, 0x8000);
+			mdelay(10);
+		}
+		else
+		{
+			//printf("Configuration for POR detected\n");
+			phy_write(phydev, 0, 0x16, 0x8010);
+			phy_write(phydev, 0, 0x0, 0x7);
+			phy_write(phydev, 0, 0x1, 0x10);
+			phy_write(phydev, 0, 0x1, 0xE03E);
+		}
+		printf("board_phy_configured\n");
 	}
 
 	return 0;
@@ -882,7 +984,9 @@ int board_eth_init(bd_t *bis)
 
 	reg=readl(&anatop->pll_enet);
 	printf("pllEnet reg1 = %x\n",reg);
-	//writel((reg|0x0003),&anatop->pll_enet);
+	writel((0x000),&anatop->pll_enet);
+	mdelay(100);
+	writel((reg),&anatop->pll_enet);
 	reg=readl(&anatop->pll_enet);
 	printf("pllEnet reg2 = %x\n",reg);
 

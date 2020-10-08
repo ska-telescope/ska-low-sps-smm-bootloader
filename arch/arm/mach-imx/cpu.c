@@ -35,7 +35,7 @@
 #endif
 
 #if defined(CONFIG_DISPLAY_CPUINFO) && !defined(CONFIG_SPL_BUILD)
-static u32 reset_cause = -1;
+u32 reset_cause = -1;
 
 static char *get_reset_cause(void)
 {
