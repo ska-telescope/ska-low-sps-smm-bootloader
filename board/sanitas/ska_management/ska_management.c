@@ -414,39 +414,60 @@ static void setup_weim(void)
 
 }
 
-#define FPGA_REGS_BA 0x8000000;
+#define FPGA_REGS_BA 0x8000000
 struct fpga_regs{
 	u32 build_info;
 	u32 build_date;
 	u32 fw_version;
 };
 
+struct switch_res{
+	u32 sw_res_reg;
+};
+
+struct hw_rev{
+	u32 hw_rev_reg;
+};
+
 static void get_weim_info()
 {
-	u32 reg,reg1,reg2,hwrev;
+	u32 reg,reg1,reg2,reg3,hwrev;
 	u32 hwrev_add=FPGA_REGS_BA+0x124;
 	u32 sw_reset=FPGA_REGS_BA+0x700;
+	u32 mcu_reset_reg=FPGA_REGS_BA+0x900;
 	struct fpga_regs *pfpga_regs=(struct fpga_regs *)FPGA_REGS_BA;
+	struct switch_res *pswitch_res=(struct switch_res *)(FPGA_REGS_BA+0x700);
+	struct hw_rev *phw_rev=(struct hw_rev *)(FPGA_REGS_BA+0x124);
 
+	//printf("Stop MCU\n");
+	//writel(0x0,mcu_reset_reg);
 	printf("Trying to read from EIM \n");
 	reg=readl(&pfpga_regs->build_info);
 	reg1=readl(&pfpga_regs->build_date);
+	reg3=readl(&pfpga_regs->fw_version);
 	printf( "FPGA_INFO %x %x\n",reg,reg1);
-	printf("FW Ver: %x \n",reg2);
-	hwrev=readl(hwrev_add);
+	printf("FW Ver: %x \n",reg3);
+	hwrev=readl(&phw_rev->hw_rev_reg);
 	printf("HW REV: %x \n",hwrev);
 	/* add here SW1  reset sequence*/
 	printf("Resetting switch... \n");
-	writel(0x0,sw_reset);
-	mdelay(500);
-	writel(0x1,sw_reset);
+	writel(0x0,&pswitch_res->sw_res_reg);
+	reg=readl(&pswitch_res->sw_res_reg);
+	printf("SW_RESET Reg value %x\n",reg);
+	mdelay(200);
+	writel(0x1,&pswitch_res->sw_res_reg);
 	gpio_request(IMX_GPIO_NR(4, 30), "SWITCH Reset");
 	gpio_direction_output(IMX_GPIO_NR(4, 30) , 0);
-	mdelay(10);
+	mdelay(100);
 	gpio_set_value(IMX_GPIO_NR(4, 30), 0);
-	mdelay(10);
+	mdelay(100);
 	gpio_set_value(IMX_GPIO_NR(4, 30), 1);
 	udelay(100);
+	reg=readl(sw_reset);
+	printf("SW_RESET Reg value %x\n",reg);
+	mdelay(600);
+	//printf("Restart MCU\n");
+	//writel(0x1,mcu_reset_reg);
 	printf("Resetting complete \n");
 }
 
@@ -675,14 +696,14 @@ int board_phy_config(struct phy_device *phydev)
 		mdio_list_devices();
 		reset_src=get_reset_cause_local();
 		printf("Detected reset cause: %s\n",reset_src);
-		if (reset_src!="POR")
+		/*if (reset_src!="POR")
 		{
 			int reg=phy_read(phydev, 0x1b, 0x4);
 			printf("Global switch reg1 port 4 value: %x\n",reg);
 			phy_write(phydev, 0x1b, 0x4, 0x8000);
 			mdelay(10);
 		}
-		else
+		else*/
 		{
 			//printf("Configuration for POR detected\n");
 			phy_write(phydev, 0, 0x16, 0x8010);
