@@ -696,20 +696,41 @@ int board_phy_config(struct phy_device *phydev)
 		mdio_list_devices();
 		reset_src=get_reset_cause_local();
 		printf("Detected reset cause: %s\n",reset_src);
-		/*if (reset_src!="POR")
-		{
-			int reg=phy_read(phydev, 0x1b, 0x4);
-			printf("Global switch reg1 port 4 value: %x\n",reg);
-			phy_write(phydev, 0x1b, 0x4, 0x8000);
-			mdelay(10);
-		}
-		else*/
+
 		{
 			//printf("Configuration for POR detected\n");
 			phy_write(phydev, 0, 0x16, 0x8010);
 			phy_write(phydev, 0, 0x0, 0x7);
 			phy_write(phydev, 0, 0x1, 0x10);
 			phy_write(phydev, 0, 0x1, 0xE03E);
+			//configuration for SPF switch port
+			phy_write(phydev, 9, 0x0, 0x9);
+			/* P9*/
+			phy_write(phydev,0x1c,25,0xF054);
+			phy_write(phydev,0x1c,24,0x8124);
+			phy_write(phydev,0x1c,25,0x400c);
+			phy_write(phydev,0x1c,24,0x8524);
+			phy_write(phydev,0x1c,25,0xF054);
+			phy_write(phydev,0x1c,24,0x8124);
+			phy_write(phydev,0x1c,25,0x4000);
+			phy_write(phydev,0x1c,24,0x8524);
+			/*Start configuring ports for traffic*/
+			/*Clear power down bit and reset SERDES P9*/
+			phy_write(phydev,0x1c,25,0x2000);
+			phy_write(phydev,0x1c,24,0x8124);
+			phy_write(phydev,0x1c,25,0xa040);
+			phy_write(phydev,0x1c,24,0x8524);
+			/*Fix 1000Base-X AN advertisement*/
+			/*write45 4.2004.5 to 1*/
+			/* ADDR 0x09*/
+			phy_write(phydev,0x1c,25,0x2004);
+			phy_write(phydev,0x1c,24,0x8124);
+			phy_write(phydev,0x1c,25,0x20);
+			phy_write(phydev,0x1c,24,0x8524);
+			/*Enable Forwarding on ports:*/
+			phy_write(phydev,9,4,0x007F);
+
+
 		}
 		printf("board_phy_configured\n");
 	}
