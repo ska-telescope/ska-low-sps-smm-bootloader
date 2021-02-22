@@ -178,6 +178,7 @@ static void fec_phy_reset(void)
 	gpio_set_value(IMX_GPIO_NR(1, 25), 1);
 	udelay(100);
 	*/
+	printf("Reset PHY...\n");
 	gpio_request(IMX_GPIO_NR(4, 29), "ENET PHY Reset");
 	gpio_direction_output(IMX_GPIO_NR(4, 29) , 0);
 	mdelay(10);
@@ -697,41 +698,57 @@ int board_phy_config(struct phy_device *phydev)
 		reset_src=get_reset_cause_local();
 		printf("Detected reset cause: %s\n",reset_src);
 
-		{
-			//printf("Configuration for POR detected\n");
-			phy_write(phydev, 0, 0x16, 0x8010);
-			phy_write(phydev, 0, 0x0, 0x7);
-			phy_write(phydev, 0, 0x1, 0x10);
-			phy_write(phydev, 0, 0x1, 0xE03E);
-			//configuration for SPF switch port
-			phy_write(phydev, 9, 0x0, 0x9);
-			/* P9*/
-			phy_write(phydev,0x1c,25,0xF054);
-			phy_write(phydev,0x1c,24,0x8124);
-			phy_write(phydev,0x1c,25,0x400c);
-			phy_write(phydev,0x1c,24,0x8524);
-			phy_write(phydev,0x1c,25,0xF054);
-			phy_write(phydev,0x1c,24,0x8124);
-			phy_write(phydev,0x1c,25,0x4000);
-			phy_write(phydev,0x1c,24,0x8524);
-			/*Start configuring ports for traffic*/
-			/*Clear power down bit and reset SERDES P9*/
-			phy_write(phydev,0x1c,25,0x2000);
-			phy_write(phydev,0x1c,24,0x8124);
-			phy_write(phydev,0x1c,25,0xa040);
-			phy_write(phydev,0x1c,24,0x8524);
-			/*Fix 1000Base-X AN advertisement*/
-			/*write45 4.2004.5 to 1*/
-			/* ADDR 0x09*/
-			phy_write(phydev,0x1c,25,0x2004);
-			phy_write(phydev,0x1c,24,0x8124);
-			phy_write(phydev,0x1c,25,0x20);
-			phy_write(phydev,0x1c,24,0x8524);
-			/*Enable Forwarding on ports:*/
-			phy_write(phydev,9,4,0x007F);
+		//printf("Configuration for POR detected\n");
+		phy_write(phydev, 0, 0x16, 0x8010);
+		phy_write(phydev, 0, 0x0, 0x7);
+		phy_write(phydev, 0, 0x1, 0x10);
+		phy_write(phydev, 0, 0x1, 0xE03E);
 
+		//configuration for SPF switch port
+		phy_write(phydev, 9, 0x0, 0x9);
+		/* P9*/
+		phy_write(phydev,0x1c,25,0xF054);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8124);
+		udelay(100);
+		phy_write(phydev,0x1c,25,0x400c);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8524);
+		udelay(100);
+		phy_write(phydev,0x1c,25,0xF054);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8124);
+		udelay(100);
+		phy_write(phydev,0x1c,25,0x4000);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8524);
+		/*Start configuring ports for traffic*/
+		/*Clear power down bit and reset SERDES P9*/
 
-		}
+		phy_write(phydev,0x1c,25,0x2000);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8124);
+		udelay(100);
+		phy_write(phydev,0x1c,25,0xa040);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8524);
+		/*Fix 1000Base-X AN advertisement*/
+		/*write45 4.2004.5 to 1*/
+		/* ADDR 0x09*/
+		phy_write(phydev,0x1c,25,0x2004);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8124);
+		udelay(100);
+		phy_write(phydev,0x1c,25,0x20);
+		udelay(100);
+		phy_write(phydev,0x1c,24,0x8524);
+		udelay(100);
+		/*Enable Forwarding on ports:*/
+		phy_write(phydev,9,4,0x007F);
+		mdelay(300);
+		//configuration for SPF switch port
+		phy_write(phydev, 9, 0x0, 0x9);
+
 		printf("board_phy_configured\n");
 	}
 
@@ -1033,8 +1050,10 @@ int board_eth_init(bd_t *bis)
 	printf("pllEnet reg2 = %x\n",reg);
 
 
+	ret =cpu_eth_init(bis);
+	printf("board_eth_init complete \n");
 
-	return cpu_eth_init(bis);
+	return ret;
 }
 
 #ifdef CONFIG_USB_EHCI_MX6
@@ -1588,7 +1607,7 @@ int board_late_init(void)
 	//env_set("mmcroot","/dev/mmcblk1p2 rootwait rw");
 	env_set("bootcmd",CONFIG_BOOTCOMMAND);
 //#endif
-
+	printf("board_late_init complete\n");
 	return 0;
 }
 

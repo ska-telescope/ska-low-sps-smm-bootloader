@@ -198,6 +198,7 @@
 
 #define CONFIG_BOOTCOMMAND \
 	   "echo U-BOOT from BOOTCOMMAND ...; " \
+	   "mii write 9 0 9;" \
 	   "if mmc dev ${sddev}; then " \
 			"echo find SD ...; " \
 			   "if run sdloadimage; then " \
