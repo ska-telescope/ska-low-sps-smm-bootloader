@@ -457,19 +457,15 @@ static void get_weim_info()
 	printf("SW_RESET Reg value %x\n",reg);
 	mdelay(200);
 	writel(0x1,&pswitch_res->sw_res_reg);
-	gpio_request(IMX_GPIO_NR(4, 30), "SWITCH Reset");
+	mdelay(600);
+	printf("Resetting complete \n");
+	printf("Configuring SHDN Pin of UPS\n");
+	gpio_request(IMX_GPIO_NR(4, 30), "UPS SHDN");
 	gpio_direction_output(IMX_GPIO_NR(4, 30) , 0);
 	mdelay(100);
 	gpio_set_value(IMX_GPIO_NR(4, 30), 0);
-	mdelay(100);
-	gpio_set_value(IMX_GPIO_NR(4, 30), 1);
-	udelay(100);
-	reg=readl(sw_reset);
-	printf("SW_RESET Reg value %x\n",reg);
-	mdelay(600);
-	//printf("Restart MCU\n");
-	//writel(0x1,mcu_reset_reg);
-	printf("Resetting complete \n");
+	printf("Configuration Complete\n");
+
 }
 
 
@@ -678,6 +674,7 @@ static int ar8031_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
+#define EX_PHY_CFG
 int board_phy_config(struct phy_device *phydev)
 {
 	/*ar8031_phy_fixup(phydev);*/
@@ -688,6 +685,8 @@ int board_phy_config(struct phy_device *phydev)
 	*/
 	char *reset_src;
 
+	printf("NO BORD PHY CONFIG EXECUTION\n");
+#ifdef EX_PHY_CFG
 	printf("board_phy_config\n");
 	if (phydev->drv->config)
 	{
@@ -751,7 +750,7 @@ int board_phy_config(struct phy_device *phydev)
 
 		printf("board_phy_configured\n");
 	}
-
+#endif
 	return 0;
 }
 
