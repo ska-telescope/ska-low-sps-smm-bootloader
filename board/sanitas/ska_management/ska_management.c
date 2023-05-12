@@ -754,6 +754,43 @@ int board_phy_config(struct phy_device *phydev)
 	return 0;
 }
 
+
+#define RAM_START_ADD 0x10000000 //indirizzo da modificare, prima bisogna verificare che non ci sia parte dell'uboot
+#define size 1024*1024*4 		//4MB dimensione della memoria da testare
+#define RAM_END_ADD (RAM_START_ADD + size)
+
+void custom_ddr_test(void)
+{
+	unsigned int *add = (unsigned int *)RAM_START_ADD;
+	unsigned int mem32;
+	unsigned int testerr=0;
+	int i;
+	int k;
+	unsigned int data;
+	unsigned int pattern[6]={0x0,0xaaaa5555,0x5555aaaa,0xffffffff,0x12345678};
+	printf("Start DDR TEST INFINITE LOOP\r\n");
+	for(int k=0;k<6;k++)
+	{
+		printf("Pattern used %x\r\n",pattern[k]);
+		mem32=RAM_START_ADD;
+		for (i=0;i<(RAM_END_ADD-RAM_START_ADD)/4;i++)
+		{
+			mem32[i]=pattern[k];
+		}
+		for (i=0;i<(RAM_START_ADD-RAM_START_ADD)/4;i++)
+		{
+			if(mem32[i]!=pattern[k])
+				{
+					testerr=testerr+1;
+					printf("Error detected at add %x, expected %x, read %x\n\r",i,pattern[k],mem32[i]);
+					//break;
+				}
+		}
+	}
+
+}
+
+
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
 vidinfo_t panel_info = {
 	.vl_refresh = 85,
