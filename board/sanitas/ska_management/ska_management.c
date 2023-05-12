@@ -754,10 +754,11 @@ int board_phy_config(struct phy_device *phydev)
 	return 0;
 }
 
-
+/*
 #define RAM_START_ADD 0x10000000 //indirizzo da modificare, prima bisogna verificare che non ci sia parte dell'uboot
 #define size 1024*1024*4 		//4MB dimensione della memoria da testare
 #define RAM_END_ADD (RAM_START_ADD + size)
+
 
 void custom_ddr_test(void)
 {
@@ -787,9 +788,8 @@ void custom_ddr_test(void)
 				}
 		}
 	}
-
 }
-
+*/
 
 #if defined(CONFIG_MX6DL) && defined(CONFIG_MXC_EPDC)
 vidinfo_t panel_info = {
