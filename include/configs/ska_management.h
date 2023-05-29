@@ -53,6 +53,9 @@
 #define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC1_BASE_ADDR
 #define CONFIG_SYS_SD_ENV_DEV	1
 #define CONFIG_MMCROOT_SD		"/dev/mmcblk1p2"  	/* USDHC2 */
+#define CONFYG_EMMC_PART_SEC  3
+#define CONFIG_MMCROOT_SEC	  "/dev/mmcblk0p4"
+
 #undef is_boot_from_usb
 
 /* FEC Config*/
@@ -116,6 +119,9 @@
 
 
 
+
+
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
 	"image=zImage\0" \
@@ -128,34 +134,59 @@
 	"boot_fdt=yes\0" \
 	"ip_dyn=yes\0" \
 	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
-	"mmcpart=1\0" \
+	"mmcpart="__stringify(CONFIG_SYS_MMC_ENV_PART)"\0" \
 	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
+	"mmcpart1="__stringify(CONFYG_EMMC_PART_SEC)"\0" \
+	"mmcroot1=" CONFIG_MMCROOT_SEC " rootwait rw\0" \
 	"mmcautodetect=yes\0" \
 	"mmcargs=setenv bootargs console=${console},${baudrate} " \
 		"root=${mmcroot}\0" \
 	"loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
 	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
+	"mmcargs1=setenv bootargs console=${console},${baudrate} " \
+		"root=${mmcroot1}\0" \
+	"loadimage1=fatload mmc ${mmcdev}:${mmcpart1} ${loadaddr} ${image}\0" \
+	"loadfdt1=fatload mmc ${mmcdev}:${mmcpart1} ${fdt_addr} ${fdt_file}\0" \
 	"mmcboot=echo Booting from mmc ...; " \
-		"run mmcargs; " \
+		"if test ${fs_part} = 0; then " \
+			"echo running mmcargs...; " \
+			"run mmcargs; " \
+		"else " \
+			"echo running mmcargs...; " \
+			"run mmcargs1; " \
+		"fi; " \
 		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-			"if run loadfdt; then " \
-				"bootz ${loadaddr} - ${fdt_addr}; " \
-			"else " \
-				"if test ${boot_fdt} = try; then " \
-					"bootz; " \
+			"if test ${krn_part} = 0; then " \
+				"if run loadfdt; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
 				"else " \
-					"echo WARN: Cannot load the DT; " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
+				"fi; " \
+			"else " \
+				"if run loadfdt1; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
+				"else " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
 				"fi; " \
 			"fi; " \
 		"else " \
 			"bootz; " \
-		"fi;\0" \
-    "sdmmcroot=" CONFIG_MMCROOT_SD " rootwait rw\0" \
+		"fi; \0"\
+	"sdmmcroot=" CONFIG_MMCROOT_SD " rootwait rw\0" \
 	"sddev="__stringify(CONFIG_SYS_SD_ENV_DEV)"\0" \
-	"loadfdt_sd=fatload mmc ${sddev}:${mmcpart} ${fdt_addr} ${fdt_file}\0"\
+	"sdpart=1\0" \
+	"loadfdt_sd=fatload mmc ${sddev}:${sdpart} ${fdt_addr} ${fdt_file}\0"\
 	"sdargs=setenv bootargs console=${console},${baudrate} " \
 		"root=${sdmmcroot}\0" \
-    "sdloadimage=fatload mmc ${sddev}:${mmcpart} ${loadaddr} ${image}\0" \
+    "sdloadimage=fatload mmc ${sddev}:${sdpart} ${loadaddr} ${image}\0" \
 	"sdboot=echo Booting from sd ...; " \
 		"run sdargs; " \
 		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
@@ -196,9 +227,19 @@
 
 /*  use this define ! */
 
+
+/*
+ * 	   "if gpio 133; then " \
+	   	   "echo Read GPIO5_5 High; " \
+	   "else " \
+	   	   "echo Read GPIO5_5 Low;"	\
+	   "fi; " \
+	   "echo Config GPIO5_5 as input; " \
+	   "gpio 133 input; " \
+ * */
 #define CONFIG_BOOTCOMMAND \
 	   "echo U-BOOT from BOOTCOMMAND ...; " \
-	   "mii write 9 0 9;" \
+	   "mii write 9 0 9; " \
 	   "if mmc dev ${sddev}; then " \
 			"echo find SD ...; " \
 			   "if run sdloadimage; then " \
@@ -210,11 +251,20 @@
        	    "echo not find SD .. try mmcdev ...; " \
 	        "mmc dev ${mmcdev};" \
             "if mmc rescan; then " \
-       	    "echo find MMC ...; " \
-				"if run loadimage; then " \
-				    "run mmcboot; " \
-			    "else run netboot; " \
-			    "fi; " \
+       	    	"echo find MMC ...; " \
+       	    	"if test ${fs_part} = 0; then " \
+					"if run loadimage; then " \
+						"run mmcboot; " \
+					"else "	\
+						"run netboot; " \
+					"fi; " \
+				"else " \
+					"if run loadimage1; then " \
+						"run mmcboot; " \
+					"else "	\
+						"run netboot; " \
+					"fi; " \
+				"fi; " \
             "fi; " \
         "fi; " \
 

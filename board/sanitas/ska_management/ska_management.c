@@ -430,8 +430,18 @@ struct hw_rev{
 	u32 hw_rev_reg;
 };
 
+struct boot_sel{
+	u32 boot_sel_reg;
+};
+
 static void get_weim_info()
 {
+    int ret = 0;
+    int retry = 5;
+    u8 bootsel=0;
+    u8 kern_part = 0;
+    u8 fs_part = 0;
+    struct udevice *dev1;
 	u32 reg,reg1,reg2,reg3,hwrev;
 	u32 hwrev_add=FPGA_REGS_BA+0x124;
 	u32 sw_reset=FPGA_REGS_BA+0x700;
@@ -439,6 +449,8 @@ static void get_weim_info()
 	struct fpga_regs *pfpga_regs=(struct fpga_regs *)FPGA_REGS_BA;
 	struct switch_res *pswitch_res=(struct switch_res *)(FPGA_REGS_BA+0x700);
 	struct hw_rev *phw_rev=(struct hw_rev *)(FPGA_REGS_BA+0x124);
+	struct boot_sel *pboot_sel=(struct boot_sel *)(FPGA_REGS_BA+0x10050);
+
 
 	//printf("Stop MCU\n");
 	//writel(0x0,mcu_reset_reg);
@@ -464,6 +476,58 @@ static void get_weim_info()
 	gpio_direction_output(IMX_GPIO_NR(4, 30) , 0);
 	mdelay(100);
 	gpio_set_value(IMX_GPIO_NR(4, 30), 0);
+
+	printf("Configuring BOOTSEL  \n");
+	printf("fwver_check %x\n", (reg3 & 0xbe7a0000));
+	if((u32)(reg3 & 0xbe7a0000)== 0xbe7a0000)
+	{
+		ret = i2c_get_chip_for_busnum(0, 0x50,1, &dev1);
+		while(retry > 0)
+		{
+			if (dm_i2c_read(dev1, 0x70, &bootsel, 1))
+			{	printf("i2c_read failed\n");
+				retry--;
+			}
+			else
+				break;
+		}
+		printf("BOOTSEL from EEP %x\n", bootsel);
+	}
+	else
+	{
+		reg=readl(&pboot_sel->boot_sel_reg);
+		bootsel=reg&0xff;
+		printf("BOOTSEL from CPLD %x\n", bootsel);
+	}
+	mdelay(100);
+	kern_part=bootsel&0x1;
+	fs_part=(bootsel&0x2)>>1;
+
+	if( kern_part != 0 )
+	{
+		//gpio_set_value(IMX_GPIO_NR(5, 5), 1);
+		printf("Set krn partition 1\n");
+		env_set("krn_part", "1");
+	}
+	else
+	{
+		//gpio_set_value(IMX_GPIO_NR(5, 5), 0);
+		printf("Set krn partition 0\n");
+		env_set("krn_part", "0");
+	}
+
+	if( fs_part != 0 )
+	{
+		//gpio_set_value(IMX_GPIO_NR(5, 5), 1);
+		printf("Set FS partition 1\n");
+		env_set("fs_part", "1");
+	}
+	else
+	{
+		//gpio_set_value(IMX_GPIO_NR(5, 5), 0);
+		printf("Set FS partition 0\n");
+		env_set("fs_part", "0");
+	}
 	printf("Configuration Complete\n");
 
 }
