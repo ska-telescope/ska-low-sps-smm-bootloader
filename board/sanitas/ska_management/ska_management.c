@@ -434,6 +434,12 @@ struct boot_sel{
 	u32 boot_sel_reg;
 };
 
+struct user_leds{
+	u32 Led_User_K;
+	u32 Led_User_A;
+	u32 Led_Mode;
+};
+
 static void get_weim_info()
 {
     int ret = 0;
@@ -450,7 +456,7 @@ static void get_weim_info()
 	struct switch_res *pswitch_res=(struct switch_res *)(FPGA_REGS_BA+0x700);
 	struct hw_rev *phw_rev=(struct hw_rev *)(FPGA_REGS_BA+0x124);
 	struct boot_sel *pboot_sel=(struct boot_sel *)(FPGA_REGS_BA+0x10050);
-
+	struct user_leds *puser_leds=(struct user_leds *)(FPGA_REGS_BA+0x400);
 
 	//printf("Stop MCU\n");
 	//writel(0x0,mcu_reset_reg);
@@ -498,6 +504,8 @@ static void get_weim_info()
 		reg=readl(&pboot_sel->boot_sel_reg);
 		bootsel=reg&0xff;
 		printf("BOOTSEL from CPLD %x\n", bootsel);
+		printf("Setting Led_Mode to Red Heartbeat \n");
+		writel(0x2000,&puser_leds->Led_Mode);
 	}
 	mdelay(100);
 	kern_part=bootsel&0x1;
