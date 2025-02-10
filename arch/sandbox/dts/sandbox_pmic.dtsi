@@ -55,7 +55,7 @@
 		regulator-always-on;
 	};
 
-	buck2 {
+	buck2: buck2 {
 		regulator-name = "SUPPLY_3.3V";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -74,5 +74,11 @@
 		regulator-name = "VDD_LCD_3.3V";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	no_match_by_nodename {
+		regulator-name = "buck_SUPPLY_1.5V";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
 	};
 };

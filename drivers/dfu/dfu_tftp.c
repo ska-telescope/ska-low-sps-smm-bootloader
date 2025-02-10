@@ -38,12 +38,12 @@ int dfu_tftp_write(char *dfu_entity_name, unsigned int addr, unsigned int len,
 	}
 
 	strsep(&s, "@");
-	debug("%s: image name: %s strlen: %d\n", __func__, sb, strlen(sb));
+	debug("%s: image name: %s strlen: %zd\n", __func__, sb, strlen(sb));
 
 	alt_setting_num = dfu_get_alt(sb);
 	free(sb);
 	if (alt_setting_num < 0) {
-		error("Alt setting [%d] to write not found!",
+		pr_err("Alt setting [%d] to write not found!",
 		      alt_setting_num);
 		ret = -ENODEV;
 		goto done;
@@ -51,12 +51,12 @@ int dfu_tftp_write(char *dfu_entity_name, unsigned int addr, unsigned int len,
 
 	dfu = dfu_get_entity(alt_setting_num);
 	if (!dfu) {
-		error("DFU entity for alt: %d not found!", alt_setting_num);
+		pr_err("DFU entity for alt: %d not found!", alt_setting_num);
 		ret = -ENODEV;
 		goto done;
 	}
 
-	ret = dfu_write_from_mem_addr(dfu, (void *)addr, len);
+	ret = dfu_write_from_mem_addr(dfu, (void *)(uintptr_t)addr, len);
 
 done:
 	dfu_free_entities();

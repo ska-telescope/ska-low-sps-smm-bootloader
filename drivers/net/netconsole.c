@@ -62,8 +62,8 @@ static int is_broadcast(struct in_addr ip)
 
 	/* update only when the environment has changed */
 	if (env_changed_id != env_id) {
-		netmask = getenv_ip("netmask");
-		our_ip = getenv_ip("ipaddr");
+		netmask = env_get_ip("netmask");
+		our_ip = env_get_ip("ipaddr");
 
 		env_changed_id = env_id;
 	}
@@ -82,11 +82,11 @@ static int refresh_settings_from_env(void)
 
 	/* update only when the environment has changed */
 	if (env_changed_id != env_id) {
-		if (getenv("ncip")) {
-			nc_ip = getenv_ip("ncip");
+		if (env_get("ncip")) {
+			nc_ip = env_get_ip("ncip");
 			if (!nc_ip.s_addr)
 				return -1;	/* ncip is 0.0.0.0 */
-			p = strchr(getenv("ncip"), ':');
+			p = strchr(env_get("ncip"), ':');
 			if (p != NULL) {
 				nc_out_port = simple_strtoul(p + 1, NULL, 10);
 				nc_in_port = nc_out_port;
@@ -95,10 +95,10 @@ static int refresh_settings_from_env(void)
 			nc_ip.s_addr = ~0; /* ncip is not set, so broadcast */
 		}
 
-		p = getenv("ncoutport");
+		p = env_get("ncoutport");
 		if (p != NULL)
 			nc_out_port = simple_strtoul(p, NULL, 10);
-		p = getenv("ncinport");
+		p = env_get("ncinport");
 		if (p != NULL)
 			nc_in_port = simple_strtoul(p, NULL, 10);
 
@@ -153,14 +153,17 @@ int nc_input_packet(uchar *pkt, struct in_addr src_ip, unsigned dest_port,
 		len = sizeof(input_buffer) - input_size;
 
 	end = input_offset + input_size;
-	if (end > sizeof(input_buffer))
+	if (end >= sizeof(input_buffer))
 		end -= sizeof(input_buffer);
 
 	chunk = len;
-	if (end + len > sizeof(input_buffer)) {
+	/* Check if packet will wrap in input_buffer */
+	if (end + len >= sizeof(input_buffer)) {
 		chunk = sizeof(input_buffer) - end;
+		/* Copy the second part of the pkt to start of input_buffer */
 		memcpy(input_buffer, pkt + chunk, len - chunk);
 	}
+	/* Copy first (or only) part of pkt after end of current valid input*/
 	memcpy(input_buffer + end, pkt, chunk);
 
 	input_size += len;
@@ -330,7 +333,7 @@ int drv_nc_init(void)
 	memset(&dev, 0, sizeof(dev));
 
 	strcpy(dev.name, "nc");
-	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT | DEV_FLAGS_SYSTEM;
+	dev.flags = DEV_FLAGS_OUTPUT | DEV_FLAGS_INPUT;
 	dev.start = nc_stdio_start;
 	dev.putc = nc_stdio_putc;
 	dev.puts = nc_stdio_puts;

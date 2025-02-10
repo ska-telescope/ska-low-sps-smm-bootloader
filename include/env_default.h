@@ -11,7 +11,7 @@
 #include <env_callback.h>
 
 #ifdef DEFAULT_ENV_INSTANCE_EMBEDDED
-env_t environment __PPCENV__ = {
+env_t environment __UBOOT_ENV_SECTION__ = {
 	ENV_CRC,	/* CRC Sum */
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
 	1,		/* Flags: valid */
@@ -28,7 +28,7 @@ const uchar default_environment[] = {
 #ifdef	CONFIG_ENV_FLAGS_LIST_DEFAULT
 	ENV_FLAGS_VAR "=" CONFIG_ENV_FLAGS_LIST_DEFAULT "\0"
 #endif
-#ifdef	CONFIG_BOOTARGS
+#ifdef	CONFIG_USE_BOOTARGS
 	"bootargs="	CONFIG_BOOTARGS			"\0"
 #endif
 #ifdef	CONFIG_BOOTCOMMAND
@@ -90,9 +90,13 @@ const uchar default_environment[] = {
 #endif
 #ifdef	CONFIG_ENV_VARS_UBOOT_CONFIG
 	"arch="		CONFIG_SYS_ARCH			"\0"
+#ifdef CONFIG_SYS_CPU
 	"cpu="		CONFIG_SYS_CPU			"\0"
+#endif
+#ifdef CONFIG_SYS_BOARD
 	"board="	CONFIG_SYS_BOARD		"\0"
 	"board_name="	CONFIG_SYS_BOARD		"\0"
+#endif
 #ifdef CONFIG_SYS_VENDOR
 	"vendor="	CONFIG_SYS_VENDOR		"\0"
 #endif

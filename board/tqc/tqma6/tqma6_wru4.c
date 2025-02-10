@@ -16,14 +16,14 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/sys_proto.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/gpio.h>
-#include <asm/imx-common/boot_mode.h>
-#include <asm/imx-common/mxc_i2c.h>
+#include <asm/mach-imx/boot_mode.h>
+#include <asm/mach-imx/mxc_i2c.h>
 
 #include <common.h>
 #include <fsl_esdhc.h>
-#include <libfdt.h>
+#include <linux/libfdt.h>
 #include <malloc.h>
 #include <i2c.h>
 #include <micrel.h>
@@ -177,7 +177,7 @@ static void setup_iomuxc_enet(void)
 	ret = gpio_request(ENET_PHY_RESET_GPIO, "phy-reset");
 	if (!ret)
 		gpio_direction_output(ENET_PHY_RESET_GPIO , 0);
-	udelay(1000);
+	udelay(25000);
 	gpio_set_value(ENET_PHY_RESET_GPIO, 1);
 }
 

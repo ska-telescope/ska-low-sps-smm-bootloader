@@ -3,6 +3,8 @@
  *
  * Copyright (C) 2013 Marek Vasut <marex@denx.de>
  *
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
+ *
  * Based on upstream Linux kernel driver:
  * pci-imx6.c:		Sean Cross <xobs@kosagi.com>
  * pcie-designware.c:	Jingoo Han <jg1.han@samsung.com>
@@ -42,6 +44,9 @@
 
 /* PCIe Port Logic registers (memory-mapped) */
 #define PL_OFFSET 0x700
+#define PCIE_PL_PFLR (PL_OFFSET + 0x08)
+#define PCIE_PL_PFLR_LINK_STATE_MASK		(0x3f << 16)
+#define PCIE_PL_PFLR_FORCE_LINK			(1 << 15)
 #define PCIE_PHY_DEBUG_R0 (PL_OFFSET + 0x28)
 #define PCIE_PHY_DEBUG_R1 (PL_OFFSET + 0x2c)
 #define PCIE_PHY_DEBUG_R1_LINK_UP		(1 << 4)
@@ -89,6 +94,43 @@
 #define PCIE_ATU_DEV(x)			(((x) & 0x1f) << 19)
 #define PCIE_ATU_FUNC(x)		(((x) & 0x7) << 16)
 #define PCIE_ATU_UPPER_TARGET		0x91C
+
+#ifdef DEBUG
+
+#ifdef DEBUG_STRESS_WR /* warm-reset stress tests */
+#define SNVS_LPGRP 0x020cc068
+#endif
+
+#define DBGF(x...) printf(x)
+
+static void print_regs(int contain_pcie_reg)
+{
+	u32 val;
+	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
+	struct mxc_ccm_reg *ccm_regs = (struct mxc_ccm_reg *)CCM_BASE_ADDR;
+	val = readl(&iomuxc_regs->gpr[1]);
+	DBGF("GPR01 a:0x%08x v:0x%08x\n", (u32)&iomuxc_regs->gpr[1], val);
+	val = readl(&iomuxc_regs->gpr[5]);
+	DBGF("GPR05 a:0x%08x v:0x%08x\n", (u32)&iomuxc_regs->gpr[5], val);
+	val = readl(&iomuxc_regs->gpr[8]);
+	DBGF("GPR08 a:0x%08x v:0x%08x\n", (u32)&iomuxc_regs->gpr[8], val);
+	val = readl(&iomuxc_regs->gpr[12]);
+	DBGF("GPR12 a:0x%08x v:0x%08x\n", (u32)&iomuxc_regs->gpr[12], val);
+	val = readl(&ccm_regs->analog_pll_enet);
+	DBGF("PLL06 a:0x%08x v:0x%08x\n", (u32)&ccm_regs->analog_pll_enet, val);
+	val = readl(&ccm_regs->ana_misc1);
+	DBGF("MISC1 a:0x%08x v:0x%08x\n", (u32)&ccm_regs->ana_misc1, val);
+	if (contain_pcie_reg) {
+		val = readl(MX6_DBI_ADDR + 0x728);
+		DBGF("dbr0 offset 0x728 %08x\n", val);
+		val = readl(MX6_DBI_ADDR + 0x72c);
+		DBGF("dbr1 offset 0x72c %08x\n", val);
+	}
+}
+#else
+#define DBGF(x...)
+static void print_regs(int contain_pcie_reg) {}
+#endif
 
 /*
  * PHY access functions
@@ -428,7 +470,7 @@ static int imx_pcie_write_config(struct pci_controller *hose, pci_dev_t d,
 /*
  * Initial bus setup
  */
-static int imx6_pcie_assert_core_reset(void)
+static int imx6_pcie_assert_core_reset(bool prepare_for_boot)
 {
 	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 
@@ -444,7 +486,38 @@ static int imx6_pcie_assert_core_reset(void)
 	setbits_le32(&iomuxc_regs->gpr[5], IOMUXC_GPR5_PCIE_BTNRST);
 	/* Power up PCIe PHY */
 	setbits_le32(&gpc_regs->cntr, PCIE_PHY_PUP_REQ);
+	pcie_power_up();
 #else
+	/*
+	 * If the bootloader already enabled the link we need some special
+	 * handling to get the core back into a state where it is safe to
+	 * touch it for configuration.  As there is no dedicated reset signal
+	 * wired up for MX6QDL, we need to manually force LTSSM into "detect"
+	 * state before completely disabling LTSSM, which is a prerequisite
+	 * for core configuration.
+	 *
+	 * If both LTSSM_ENABLE and REF_SSP_ENABLE are active we have a strong
+	 * indication that the bootloader activated the link.
+	 */
+	if (is_mx6dq() && prepare_for_boot) {
+		u32 val, gpr1, gpr12;
+
+		gpr1 = readl(&iomuxc_regs->gpr[1]);
+		gpr12 = readl(&iomuxc_regs->gpr[12]);
+		if ((gpr1 & IOMUXC_GPR1_PCIE_REF_CLK_EN) &&
+		    (gpr12 & IOMUXC_GPR12_PCIE_CTL_2)) {
+			val = readl(MX6_DBI_ADDR + PCIE_PL_PFLR);
+			val &= ~PCIE_PL_PFLR_LINK_STATE_MASK;
+			val |= PCIE_PL_PFLR_FORCE_LINK;
+
+			imx_pcie_fix_dabt_handler(true);
+			writel(val, MX6_DBI_ADDR + PCIE_PL_PFLR);
+			imx_pcie_fix_dabt_handler(false);
+
+			gpr12 &= ~IOMUXC_GPR12_PCIE_CTL_2;
+			writel(val, &iomuxc_regs->gpr[12]);
+		}
+	}
 	setbits_le32(&iomuxc_regs->gpr[1], IOMUXC_GPR1_TEST_POWERDOWN);
 	clrbits_le32(&iomuxc_regs->gpr[1], IOMUXC_GPR1_REF_SSP_EN);
 #endif
@@ -456,7 +529,9 @@ static int imx6_pcie_init_phy(void)
 {
 	struct iomuxc *iomuxc_regs = (struct iomuxc *)IOMUXC_BASE_ADDR;
 
+#ifndef DEBUG
 	clrbits_le32(&iomuxc_regs->gpr[12], IOMUXC_GPR12_APPS_LTSSM_ENABLE);
+#endif
 
 	clrsetbits_le32(&iomuxc_regs->gpr[12],
 			IOMUXC_GPR12_DEVICE_TYPE_MASK,
@@ -484,10 +559,12 @@ static int imx6_pcie_init_phy(void)
 __weak int imx6_pcie_toggle_power(void)
 {
 #ifdef CONFIG_PCIE_IMX_POWER_GPIO
+	gpio_request(CONFIG_PCIE_IMX_POWER_GPIO, "pcie_power");
 	gpio_direction_output(CONFIG_PCIE_IMX_POWER_GPIO, 0);
 	mdelay(20);
 	gpio_set_value(CONFIG_PCIE_IMX_POWER_GPIO, 1);
 	mdelay(20);
+	gpio_free(CONFIG_PCIE_IMX_POWER_GPIO);
 #endif
 	return 0;
 }
@@ -523,10 +600,12 @@ __weak int imx6_pcie_toggle_reset(void)
 	 * state due to being previously used in U-Boot.
 	 */
 #ifdef CONFIG_PCIE_IMX_PERST_GPIO
+	gpio_request(CONFIG_PCIE_IMX_PERST_GPIO, "pcie_reset");
 	gpio_direction_output(CONFIG_PCIE_IMX_PERST_GPIO, 0);
 	mdelay(20);
 	gpio_set_value(CONFIG_PCIE_IMX_PERST_GPIO, 1);
 	mdelay(20);
+	gpio_free(CONFIG_PCIE_IMX_PERST_GPIO);
 #else
 	puts("WARNING: Make sure the PCIe #PERST line is connected!\n");
 #endif
@@ -572,11 +651,22 @@ static int imx_pcie_link_up(void)
 	uint32_t tmp;
 	int count = 0;
 
-	imx6_pcie_assert_core_reset();
+	imx6_pcie_assert_core_reset(false);
 	imx6_pcie_init_phy();
 	imx6_pcie_deassert_core_reset();
 
 	imx_pcie_regions_setup();
+
+	/*
+	 * By default, the subordinate is set equally to the secondary
+	 * bus (0x01) when the RC boots.
+	 * This means that theoretically, only bus 1 is reachable from the RC.
+	 * Force the PCIe RC subordinate to 0xff, otherwise no downstream
+	 * devices will be detected if the enumeration is applied strictly.
+	 */
+	tmp = readl(MX6_DBI_ADDR + 0x18);
+	tmp |= (0xff << 16);
+	writel(tmp, MX6_DBI_ADDR + 0x18);
 
 	/*
 	 * FIXME: Force the PCIe RC to Gen1 operation
@@ -595,13 +685,33 @@ static int imx_pcie_link_up(void)
 	while (!imx6_pcie_link_up()) {
 		udelay(10);
 		count++;
-		if (count >= 2000) {
+		if (count == 1000) {
+			print_regs(1);
+			/* link down, try reset ep, and re-try link here */
+			DBGF("pcie link is down, reset ep, then retry!\n");
+			imx6_pcie_toggle_reset();
+			continue;
+		}
+#ifdef DEBUG
+		else if (count >= 2000) {
+			print_regs(1);
+			/* link is down, stop here */
+			setenv("bootcmd", "sleep 2;");
+			DBGF("pcie link is down, stop here!\n");
+			clrbits_le32(&iomuxc_regs->gpr[12],
+				     IOMUXC_GPR12_APPS_LTSSM_ENABLE);
+			return -EINVAL;
+		}
+#endif
+		if (count >= 4000) {
 #ifdef CONFIG_PCI_SCAN_SHOW
 			puts("PCI:   pcie phy link never came up\n");
 #endif
 			debug("DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
 			      readl(MX6_DBI_ADDR + PCIE_PHY_DEBUG_R0),
 			      readl(MX6_DBI_ADDR + PCIE_PHY_DEBUG_R1));
+			clrbits_le32(&iomuxc_regs->gpr[12],
+				     IOMUXC_GPR12_APPS_LTSSM_ENABLE);
 			return -EINVAL;
 		}
 	}
@@ -615,6 +725,10 @@ void imx_pcie_init(void)
 	static struct pci_controller	pcc;
 	struct pci_controller		*hose = &pcc;
 	int ret;
+#ifdef DEBUG_STRESS_WR
+	u32 dbg_reg_addr = SNVS_LPGRP;
+	u32 dbg_reg = readl(dbg_reg_addr) + 1;
+#endif
 
 	memset(&pcc, 0, sizeof(pcc));
 
@@ -649,12 +763,24 @@ void imx_pcie_init(void)
 	if (!ret) {
 		pci_register_hose(hose);
 		hose->last_busno = pci_hose_scan(hose);
+#ifdef DEBUG_STRESS_WR
+		dbg_reg += 1<<16;
+#endif
 	}
+#ifdef DEBUG_STRESS_WR
+	writel(dbg_reg, dbg_reg_addr);
+	DBGF("PCIe Successes/Attempts: %d/%d\n",
+			dbg_reg >> 16, dbg_reg & 0xffff);
+#endif
+}
+
+void imx_pcie_remove(void)
+{
+	imx6_pcie_assert_core_reset(true);
 }
 
 /* Probe function. */
 void pci_init_board(void)
 {
-	puts("pcie called\n\r");
 	imx_pcie_init();
 }

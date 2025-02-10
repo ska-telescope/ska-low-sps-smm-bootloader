@@ -6,7 +6,7 @@
  *
  * Linux IPU driver for MX51:
  *
- * (C) Copyright 2005-2010 Freescale Semiconductor, Inc.
+ * (C) Copyright 2005-2016 Freescale Semiconductor, Inc.
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -15,7 +15,7 @@
 
 #include <common.h>
 #include <linux/types.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/sys_proto.h>
@@ -48,7 +48,9 @@ static int dmfc_size_28, dmfc_size_29, dmfc_size_24, dmfc_size_27, dmfc_size_23;
 int g_di1_tvout;
 
 extern struct clk *g_ipu_clk;
-extern struct clk *g_ldb_clk;
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+extern struct clk *g_ldb_clk[2];
+#endif
 extern struct clk *g_di_clk[2];
 extern struct clk *g_pixel_clk[2];
 
@@ -611,11 +613,9 @@ void ipu_dp_dc_enable(ipu_channel_t channel)
 	uint32_t reg;
 	uint32_t dc_chan;
 
-	if (channel == MEM_FG_SYNC)
-		dc_chan = 5;
 	if (channel == MEM_DC_SYNC)
 		dc_chan = 1;
-	else if (channel == MEM_BG_SYNC)
+	else if ((channel == MEM_BG_SYNC) || (channel == MEM_FG_SYNC))
 		dc_chan = 5;
 	else
 		return;
@@ -645,6 +645,9 @@ void ipu_dp_dc_enable(ipu_channel_t channel)
 	__raw_writel(reg, DC_WR_CH_CONF(dc_chan));
 
 	clk_enable(g_pixel_clk[di]);
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+	clk_enable(g_ldb_clk[di]);
+#endif
 }
 
 static unsigned char dc_swap;
@@ -735,6 +738,9 @@ void ipu_dp_dc_disable(ipu_channel_t channel, unsigned char swap)
 		/* Clock is already off because it must be done quickly, but
 		   we need to fix the ref count */
 		clk_disable(g_pixel_clk[g_dc_di_assignment[dc_chan]]);
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+		clk_disable(g_ldb_clk[g_dc_di_assignment[dc_chan]]);
+#endif
 	}
 }
 
@@ -885,7 +891,9 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
 				udelay(10000);
 			}
 		}
-		clk_set_parent(g_pixel_clk[disp], g_ldb_clk);
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+		clk_set_parent(g_pixel_clk[disp], g_ldb_clk[disp]);
+#endif
 	} else {
 		if (clk_get_usecount(g_pixel_clk[disp]) != 0)
 			clk_set_parent(g_pixel_clk[disp], g_ipu_clk);
@@ -1119,7 +1127,7 @@ int32_t ipu_init_sync_panel(int disp, uint32_t pixel_clk,
 		reg &= 0x0000FFFF;
 		__raw_writel(reg, DI_STP_REP(disp, 6));
 		__raw_writel(0, DI_STP_REP(disp, 7));
-		__raw_writel(0, DI_STP_REP(disp, 9));
+		__raw_writel(0, DI_STP_REP9(disp));
 
 		/* Init template microcode */
 		if (disp) {

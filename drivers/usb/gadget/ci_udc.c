@@ -14,7 +14,7 @@
 #include <net.h>
 #include <malloc.h>
 #include <asm/byteorder.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
 #include <linux/types.h>
@@ -139,6 +139,7 @@ static struct ci_drv controller = {
 		.name	= "ci_udc",
 		.ops	= &ci_udc_ops,
 		.is_dualspeed = 1,
+		.max_speed = USB_SPEED_HIGH,
 	},
 };
 
@@ -329,6 +330,7 @@ static int ci_ep_enable(struct usb_ep *ep,
 	num = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 	in = (desc->bEndpointAddress & USB_DIR_IN) != 0;
 	ci_ep->desc = desc;
+	ep->desc = desc;
 
 	if (num) {
 		int max = get_unaligned_le16(&desc->wMaxPacketSize);
@@ -351,6 +353,7 @@ static int ci_ep_disable(struct usb_ep *ep)
 	struct ci_ep *ci_ep = container_of(ep, struct ci_ep, ep);
 
 	ci_ep->desc = NULL;
+	ep->desc = NULL;
 	return 0;
 }
 
@@ -1006,8 +1009,6 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		return -EINVAL;
 	if (!driver->bind || !driver->setup || !driver->disconnect)
 		return -EINVAL;
-	if (driver->speed != USB_SPEED_FULL && driver->speed != USB_SPEED_HIGH)
-		return -EINVAL;
 
 #ifdef CONFIG_DM_USB
 	ret = usb_setup_ehci_gadget(&controller.ctrl);
@@ -1018,18 +1019,10 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		return ret;
 
 	ret = ci_udc_probe();
-#if defined(CONFIG_USB_EHCI_MX6) || defined(CONFIG_USB_EHCI_MXS)
-	/*
-	 * FIXME: usb_lowlevel_init()->ehci_hcd_init() should be doing all
-	 * HW-specific initialization, e.g. ULPI-vs-UTMI PHY selection
-	 */
-	if (!ret) {
-		struct ci_udc *udc = (struct ci_udc *)controller.ctrl->hcor;
-
-		/* select ULPI phy */
-		writel(PTS(PTS_ENABLE) | PFSC, &udc->portsc);
+	if (ret) {
+		DBG("udc probe failed, returned %d\n", ret);
+		return ret;
 	}
-#endif
 
 	ret = driver->bind(&controller.gadget);
 	if (ret) {
@@ -1051,6 +1044,13 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	ci_ep_free_request(&controller.ep[0].ep, &controller.ep0_req->req);
 	free(controller.items_mem);
 	free(controller.epts);
+
+#ifdef CONFIG_DM_USB
+	usb_remove_ehci_gadget(&controller.ctrl);
+#else
+	usb_lowlevel_stop(0);
+	controller.ctrl = NULL;
+#endif
 
 	return 0;
 }

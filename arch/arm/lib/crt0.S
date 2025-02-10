@@ -71,42 +71,19 @@ ENTRY(_main)
  */
 
 #if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_STACK)
-	ldr	sp, =(CONFIG_SPL_STACK)
+	ldr	r0, =(CONFIG_SPL_STACK)
 #else
-	ldr	sp, =(CONFIG_SYS_INIT_SP_ADDR)
+	ldr	r0, =(CONFIG_SYS_INIT_SP_ADDR)
 #endif
-#if defined(CONFIG_CPU_V7M)	/* v7M forbids using SP as BIC destination */
-	mov	r3, sp
-	bic	r3, r3, #7
-	mov	sp, r3
-#else
-	bic	sp, sp, #7	/* 8-byte alignment for ABI compliance */
-#endif
-	mov	r2, sp
-	sub	sp, sp, #GD_SIZE	/* allocate one GD above SP */
-#if defined(CONFIG_CPU_V7M)	/* v7M forbids using SP as BIC destination */
-	mov	r3, sp
-	bic	r3, r3, #7
-	mov	sp, r3
-#else
-	bic	sp, sp, #7	/* 8-byte alignment for ABI compliance */
-#endif
-	mov	r9, sp		/* GD is above SP */
-	mov	r1, sp
+	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
+	mov	sp, r0
+	bl	board_init_f_alloc_reserve
+	mov	sp, r0
+	/* set up gd here, outside any C code */
+	mov	r9, r0
+	bl	board_init_f_init_reserve
+
 	mov	r0, #0
-clr_gd:
-	cmp	r1, r2			/* while not at end of GD */
-#if defined(CONFIG_CPU_V7M)
-	itt	lo
-#endif
-	strlo	r0, [r1]		/* clear 32-bit GD word */
-	addlo	r1, r1, #4		/* move to next */
-	blo	clr_gd
-#if defined(CONFIG_SYS_MALLOC_F_LEN)
-	sub	sp, sp, #CONFIG_SYS_MALLOC_F_LEN
-	str	sp, [r9, #GD_MALLOC_BASE]
-#endif
-	/* mov r0, #0 not needed due to above code */
 	bl	board_init_f
 
 #if ! defined(CONFIG_SPL_BUILD)
@@ -117,14 +94,9 @@ clr_gd:
  * 'here' but relocated.
  */
 
-	ldr	sp, [r9, #GD_START_ADDR_SP]	/* sp = gd->start_addr_sp */
-#if defined(CONFIG_CPU_V7M)	/* v7M forbids using SP as BIC destination */
-	mov	r3, sp
-	bic	r3, r3, #7
-	mov	sp, r3
-#else
-	bic	sp, sp, #7	/* 8-byte alignment for ABI compliance */
-#endif
+	ldr	r0, [r9, #GD_START_ADDR_SP]	/* sp = gd->start_addr_sp */
+	bic	r0, r0, #7	/* 8-byte alignment for ABI compliance */
+	mov	sp, r0
 	ldr	r9, [r9, #GD_BD]		/* r9 = gd->bd */
 	sub	r9, r9, #GD_SIZE		/* new GD is below bd */
 
@@ -153,6 +125,7 @@ here:
 	bl	spl_relocate_stack_gd
 	cmp	r0, #0
 	movne	sp, r0
+	movne	r9, r0
 # endif
 	ldr	r0, =__bss_start	/* this is auto-relocated! */
 
@@ -183,8 +156,12 @@ clbss_l:cmp	r0, r1			/* while not at end of BSS */
 	mov     r0, r9                  /* gd_t */
 	ldr	r1, [r9, #GD_RELOCADDR]	/* dest_addr */
 	/* call board_init_r */
+#if CONFIG_IS_ENABLED(SYS_THUMB_BUILD)
+	ldr	lr, =board_init_r	/* this is auto-relocated! */
+	bx	lr
+#else
 	ldr	pc, =board_init_r	/* this is auto-relocated! */
-
+#endif
 	/* we should not return here. */
 #endif
 

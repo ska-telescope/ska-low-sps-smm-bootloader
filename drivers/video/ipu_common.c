@@ -16,9 +16,11 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <asm/io.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/crm_regs.h>
+#include <asm/arch/sys_proto.h>
+#include <div64.h>
 #include "ipu.h"
 #include "ipu_regs.h"
 
@@ -80,6 +82,11 @@ struct ipu_ch_param {
 
 #define IPU_SW_RST_TOUT_USEC	(10000)
 
+#define IPUV3_CLK_MX51		133000000
+#define IPUV3_CLK_MX53		200000000
+#define IPUV3_CLK_MX6Q		264000000
+#define IPUV3_CLK_MX6DL		198000000
+
 void clk_enable(struct clk *clk)
 {
 	if (clk) {
@@ -125,8 +132,12 @@ struct clk *clk_get_parent(struct clk *clk)
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	if (clk && clk->set_rate)
+	if (!clk)
+		return 0;
+
+	if (clk->set_rate)
 		clk->set_rate(clk, rate);
+
 	return clk->rate;
 }
 
@@ -195,7 +206,6 @@ static void clk_ipu_disable(struct clk *clk)
 
 static struct clk ipu_clk = {
 	.name = "ipu_clk",
-	.rate = CONFIG_IPUV3_CLK,
 #if defined(CONFIG_MX51) || defined(CONFIG_MX53)
 	.enable_reg = (u32 *)(CCM_BASE_ADDR +
 		offsetof(struct mxc_ccm_reg, CCGR5)),
@@ -214,15 +224,69 @@ static struct clk ipu_clk = {
 #define CONFIG_SYS_LDB_CLOCK 65000000
 #endif
 
-static struct clk ldb_clk = {
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+static int clk_ldb_clk_enable(struct clk *clk)
+{
+	u32 reg;
+
+	reg = __raw_readl(clk->enable_reg);
+	reg |= MXC_CCM_CCGR_CG_MASK << clk->enable_shift;
+	__raw_writel(reg, clk->enable_reg);
+
+	return 0;
+}
+
+static void clk_ldb_clk_disable(struct clk *clk)
+{
+	u32 reg;
+
+	reg = __raw_readl(clk->enable_reg);
+	reg &= ~(MXC_CCM_CCGR_CG_MASK << clk->enable_shift);
+	__raw_writel(reg, clk->enable_reg);
+}
+
+static struct clk ldb_clk[2] = {
+	{
 	.name = "ldb_clk",
+	.id = 0,
 	.rate = CONFIG_SYS_LDB_CLOCK,
+#ifdef CONFIG_MX6
+	.enable_reg = (u32 *)(CCM_BASE_ADDR +
+		offsetof(struct mxc_ccm_reg, CCGR3)),
+	.enable_shift = MXC_CCM_CCGR3_LDB_DI0_OFFSET,
+#else
+	.enable_reg = (u32 *)(CCM_BASE_ADDR +
+		offsetof(struct mxc_ccm_reg, CCGR6)),
+	.enable_shift = MXC_CCM_CCGR6_LDB_DI0_OFFSET,
+#endif
+	.enable = clk_ldb_clk_enable,
+	.disable = clk_ldb_clk_disable,
 	.usecount = 0,
+	}, {
+	.name = "ldb_clk",
+	.id = 1,
+	.rate = CONFIG_SYS_LDB_CLOCK,
+#ifdef CONFIG_MX6
+	.enable_reg = (u32 *)(CCM_BASE_ADDR +
+		offsetof(struct mxc_ccm_reg, CCGR3)),
+	.enable_shift = MXC_CCM_CCGR3_LDB_DI1_OFFSET,
+#else
+	.enable_reg = (u32 *)(CCM_BASE_ADDR +
+		offsetof(struct mxc_ccm_reg, CCGR6)),
+	.enable_shift = MXC_CCM_CCGR6_LDB_DI1_OFFSET,
+#endif
+	.enable = clk_ldb_clk_enable,
+	.disable = clk_ldb_clk_disable,
+	.usecount = 0,
+	}
 };
+#endif
 
 /* Globals */
 struct clk *g_ipu_clk;
-struct clk *g_ldb_clk;
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+struct clk *g_ldb_clk[2];
+#endif
 unsigned char g_ipu_clk_enabled;
 struct clk *g_di_clk[2];
 struct clk *g_pixel_clk[2];
@@ -275,50 +339,86 @@ static inline void ipu_ch_param_set_buffer(uint32_t ch, int bufNum,
 
 static void ipu_pixel_clk_recalc(struct clk *clk)
 {
-	u32 div = __raw_readl(DI_BS_CLKGEN0(clk->id));
-	if (div == 0)
-		clk->rate = 0;
-	else
-		clk->rate = (clk->parent->rate * 16) / div;
+	u32 div;
+	u64 final_rate = (unsigned long long)clk->parent->rate * 16;
+
+	div = __raw_readl(DI_BS_CLKGEN0(clk->id));
+	debug("read BS_CLKGEN0 div:%d, final_rate:%lld, prate:%ld\n",
+	      div, final_rate, clk->parent->rate);
+
+	clk->rate = 0;
+	if (div != 0) {
+		do_div(final_rate, div);
+		clk->rate = final_rate;
+	}
 }
 
 static unsigned long ipu_pixel_clk_round_rate(struct clk *clk,
 	unsigned long rate)
 {
-	u32 div, div1;
-	u32 tmp;
+	u64 div, final_rate;
+	u32 remainder;
+	u64 parent_rate = (unsigned long long)clk->parent->rate * 16;
+
 	/*
 	 * Calculate divider
 	 * Fractional part is 4 bits,
 	 * so simply multiply by 2^4 to get fractional part.
 	 */
-	tmp = (clk->parent->rate * 16);
-	div = tmp / rate;
-
+	div = parent_rate;
+	remainder = do_div(div, rate);
+	/* Round the divider value */
+	if (remainder > (rate / 2))
+		div++;
 	if (div < 0x10)            /* Min DI disp clock divider is 1 */
 		div = 0x10;
 	if (div & ~0xFEF)
 		div &= 0xFF8;
 	else {
-		div1 = div & 0xFE0;
-		if ((tmp/div1 - tmp/div) < rate / 4)
-			div = div1;
-		else
-			div &= 0xFF8;
+		/* Round up divider if it gets us closer to desired pix clk */
+		if ((div & 0xC) == 0xC) {
+			div += 0x10;
+			div &= ~0xF;
+		}
 	}
-	return (clk->parent->rate * 16) / div;
+	final_rate = parent_rate;
+	do_div(final_rate, div);
+
+	return final_rate;
 }
 
 static int ipu_pixel_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 div = (clk->parent->rate * 16) / rate;
+	u64 div, parent_rate;
+	u32 remainder;
+
+	parent_rate = (unsigned long long)clk->parent->rate * 16;
+	div = parent_rate;
+	remainder = do_div(div, rate);
+	/* Round the divider value */
+	if (remainder > (rate / 2))
+		div++;
+
+	/* Round up divider if it gets us closer to desired pix clk */
+	if ((div & 0xC) == 0xC) {
+		div += 0x10;
+		div &= ~0xF;
+	}
+	if (div > 0x1000)
+		debug("Overflow, DI_BS_CLKGEN0 div:0x%x\n", (u32)div);
 
 	__raw_writel(div, DI_BS_CLKGEN0(clk->id));
 
-	/* Setup pixel clock timing */
+	/*
+	 * Setup pixel clock timing
+	 * Down time is half of period
+	 */
 	__raw_writel((div / 16) << 16, DI_BS_CLKGEN1(clk->id));
 
-	clk->rate = (clk->parent->rate * 16) / div;
+	do_div(parent_rate, div);
+
+	clk->rate = parent_rate;
+
 	return 0;
 }
 
@@ -345,8 +445,10 @@ static int ipu_pixel_clk_set_parent(struct clk *clk, struct clk *parent)
 
 	if (parent == g_ipu_clk)
 		di_gen &= ~DI_GEN_DI_CLK_EXT;
-	else if (!IS_ERR(g_di_clk[clk->id]) && parent == g_ldb_clk)
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+	else if (!IS_ERR(g_di_clk[clk->id]) && parent == g_ldb_clk[clk->id])
 		di_gen |= DI_GEN_DI_CLK_EXT;
+#endif
 	else
 		return -EINVAL;
 
@@ -439,9 +541,20 @@ int ipu_probe(void)
 	g_pixel_clk[1] = &pixel_clk[1];
 
 	g_ipu_clk = &ipu_clk;
+#if defined(CONFIG_MX51)
+	g_ipu_clk->rate = IPUV3_CLK_MX51;
+#elif defined(CONFIG_MX53)
+	g_ipu_clk->rate = IPUV3_CLK_MX53;
+#else
+	g_ipu_clk->rate = is_mx6sdl() ? IPUV3_CLK_MX6DL : IPUV3_CLK_MX6Q;
+#endif
 	debug("ipu_clk = %u\n", clk_get_rate(g_ipu_clk));
-	g_ldb_clk = &ldb_clk;
-	debug("ldb_clk = %u\n", clk_get_rate(g_ldb_clk));
+#if defined(CONFIG_MX6) || defined(CONFIG_MX53)
+	g_ldb_clk[0] = &ldb_clk[0];
+	g_ldb_clk[1] = &ldb_clk[1];
+	debug("ldb_clk[0] = %u\n", clk_get_rate(g_ldb_clk[0]));
+	debug("ldb_clk[1] = %u\n", clk_get_rate(g_ldb_clk[1]));
+#endif
 	ipu_reset();
 
 	clk_set_parent(g_pixel_clk[0], g_ipu_clk);
@@ -1202,7 +1315,13 @@ ipu_color_space_t format_to_colorspace(uint32_t fmt)
 /* should be removed when clk framework is availiable */
 int ipu_set_ldb_clock(int rate)
 {
-	ldb_clk.rate = rate;
+	ldb_clk[0].rate = rate;
+	ldb_clk[1].rate = rate;
 
 	return 0;
+}
+
+bool ipu_clk_enabled(void)
+{
+	return g_ipu_clk_enabled;
 }

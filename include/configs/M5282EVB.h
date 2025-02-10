@@ -21,7 +21,6 @@
 
 #define CONFIG_MCFUART
 #define CONFIG_SYS_UART_PORT		(0)
-#define CONFIG_BAUDRATE		115200
 
 #undef	CONFIG_MONITOR_IS_IN_RAM	/* define if monitor is started from a pre-loader */
 
@@ -30,26 +29,19 @@
  */
 #define CONFIG_ENV_ADDR		0xffe04000
 #define CONFIG_ENV_SIZE		0x2000
-#define CONFIG_ENV_IS_IN_FLASH	1
 
 #define LDS_BOARD_TEXT \
 	. = DEFINED(env_offset) ? env_offset : .; \
-	common/env_embedded.o (.text*);
+	env/embedded.o(.text*);
 
 /*
  * BOOTP options
  */
 #define CONFIG_BOOTP_BOOTFILESIZE
-#define CONFIG_BOOTP_BOOTPATH
-#define CONFIG_BOOTP_GATEWAY
-#define CONFIG_BOOTP_HOSTNAME
 
 /*
  * Command line configuration.
  */
-#define CONFIG_CMD_CACHE
-#define CONFIG_CMD_PING
-#define CONFIG_CMD_MII
 
 #define CONFIG_MCFFEC
 #ifdef CONFIG_MCFFEC
@@ -73,7 +65,6 @@
 #	endif			/* CONFIG_SYS_DISCOVER_PHY */
 #endif
 
-#define CONFIG_BOOTDELAY	5
 #ifdef CONFIG_MCFFEC
 #	define CONFIG_IPADDR	192.162.1.2
 #	define CONFIG_NETMASK	255.255.255.0
@@ -93,17 +84,6 @@
 	"cp.b ${loadaddr} ffe00000 ${filesize};"\
 	"save\0"				\
 	""
-
-#define	CONFIG_SYS_LONGHELP		/* undef to save memory         */
-
-#if defined(CONFIG_CMD_KGDB)
-#define	CONFIG_SYS_CBSIZE		1024	/* Console I/O Buffer Size      */
-#else
-#define	CONFIG_SYS_CBSIZE		256	/* Console I/O Buffer Size      */
-#endif
-#define	CONFIG_SYS_PBSIZE (CONFIG_SYS_CBSIZE+sizeof(CONFIG_SYS_PROMPT)+16)	/* Print Buffer Size */
-#define	CONFIG_SYS_MAXARGS		16	/* max number of command args   */
-#define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE	/* Boot Argument Buffer Size    */
 
 #define CONFIG_SYS_LOAD_ADDR		0x20000
 

@@ -122,6 +122,8 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 	if (!evt->buf)
 		return ERR_PTR(-ENOMEM);
 
+	dwc3_flush_cache((uintptr_t)evt->buf, evt->length);
+
 	return evt;
 }
 
@@ -281,7 +283,7 @@ static int dwc3_setup_scratch_buffers(struct dwc3 *dwc)
 	return 0;
 
 err1:
-	dma_unmap_single((void *)dwc->scratch_addr, dwc->nr_scratch *
+	dma_unmap_single((void *)(uintptr_t)dwc->scratch_addr, dwc->nr_scratch *
 			 DWC3_SCRATCHBUF_SIZE, DMA_BIDIRECTIONAL);
 
 err0:
@@ -296,7 +298,7 @@ static void dwc3_free_scratch_buffers(struct dwc3 *dwc)
 	if (!dwc->nr_scratch)
 		return;
 
-	dma_unmap_single((void *)dwc->scratch_addr, dwc->nr_scratch *
+	dma_unmap_single((void *)(uintptr_t)dwc->scratch_addr, dwc->nr_scratch *
 			 DWC3_SCRATCHBUF_SIZE, DMA_BIDIRECTIONAL);
 	kfree(dwc->scratchbuf);
 }
@@ -393,6 +395,25 @@ static void dwc3_phy_setup(struct dwc3 *dwc)
 	mdelay(100);
 }
 
+void dwc3_set_suspend_clk(struct dwc3 *dwc)
+{
+	u32 reg;
+
+	/*
+	 * DWC3_GCTL.PWRDNSCALE: The USB3 suspend_clk input replaces
+	 * pipe3_rx_pclk as a clock source to a small part of the USB3
+	 * core that operates when the SS PHY is in its lowest power
+	 * (P3) state, and therefore does not provide a clock.
+	 * The Power Down Scale field specifies how many suspend_clk
+	 * periods fit into a 16 kHz clock period. When performing the
+	 * division, round up the remainder.
+	 */
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~(DWC3_GCTL_PWRDNSCALE(0x1fff));
+	reg |= DWC3_GCTL_PWRDNSCALE(dwc->power_down_scale);
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+}
+
 /**
  * dwc3_core_init - Low-level initialization of DWC3 Core
  * @dwc: Pointer to our controller context structure
@@ -440,6 +461,9 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	ret = dwc3_core_soft_reset(dwc);
 	if (ret)
 		goto err0;
+
+	if (dwc->power_down_scale)
+		dwc3_set_suspend_clk(dwc);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 	reg &= ~DWC3_GCTL_SCALEDOWN_MASK;
@@ -613,7 +637,7 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 int dwc3_uboot_init(struct dwc3_device *dwc3_dev)
 {
 	struct dwc3		*dwc;
-	struct device		*dev;
+	struct device		*dev = NULL;
 	u8			lpm_nyet_threshold;
 	u8			tx_de_emphasis;
 	u8			hird_threshold;
@@ -629,7 +653,8 @@ int dwc3_uboot_init(struct dwc3_device *dwc3_dev)
 	dwc = PTR_ALIGN(mem, DWC3_ALIGN_MASK + 1);
 	dwc->mem = mem;
 
-	dwc->regs	= (int *)(dwc3_dev->base + DWC3_GLOBALS_REGS_START);
+	dwc->regs = (void *)(uintptr_t)(dwc3_dev->base +
+					DWC3_GLOBALS_REGS_START);
 
 	/* default to highest possible threshold */
 	lpm_nyet_threshold = 0xff;
@@ -668,6 +693,8 @@ int dwc3_uboot_init(struct dwc3_device *dwc3_dev)
 	dwc->tx_de_emphasis_quirk = dwc3_dev->tx_de_emphasis_quirk;
 	if (dwc3_dev->tx_de_emphasis)
 		tx_de_emphasis = dwc3_dev->tx_de_emphasis;
+
+	dwc->power_down_scale = dwc3_dev->power_down_scale;
 
 	/* default to superspeed if no maximum_speed passed */
 	if (dwc->maximum_speed == USB_SPEED_UNKNOWN)

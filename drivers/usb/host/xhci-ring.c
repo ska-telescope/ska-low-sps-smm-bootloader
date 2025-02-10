@@ -18,7 +18,7 @@
 #include <asm/byteorder.h>
 #include <usb.h>
 #include <asm/unaligned.h>
-#include <asm-generic/errno.h>
+#include <linux/errno.h>
 
 #include "xhci.h"
 
@@ -280,8 +280,15 @@ void xhci_queue_command(struct xhci_ctrl *ctrl, u8 *ptr, u32 slot_id,
 	fields[0] = lower_32_bits(val_64);
 	fields[1] = upper_32_bits(val_64);
 	fields[2] = 0;
-	fields[3] = TRB_TYPE(cmd) | EP_ID_FOR_TRB(ep_index) |
-		    SLOT_ID_FOR_TRB(slot_id) | ctrl->cmd_ring->cycle_state;
+	fields[3] = TRB_TYPE(cmd) | SLOT_ID_FOR_TRB(slot_id) |
+		    ctrl->cmd_ring->cycle_state;
+
+	/*
+	 * Only 'reset endpoint', 'stop endpoint' and 'set TR dequeue pointer'
+	 * commands need endpoint id encoded.
+	 */
+	if (cmd >= TRB_RESET_EP && cmd <= TRB_SET_DEQ)
+		fields[3] |= EP_ID_FOR_TRB(ep_index);
 
 	queue_trb(ctrl, ctrl->cmd_ring, false, fields);
 
@@ -550,7 +557,7 @@ int xhci_bulk_tx(struct usb_device *udev, unsigned long pipe,
 {
 	int num_trbs = 0;
 	struct xhci_generic_trb *start_trb;
-	bool first_trb = 0;
+	bool first_trb = false;
 	int start_cycle;
 	u32 field = 0;
 	u32 length_field = 0;

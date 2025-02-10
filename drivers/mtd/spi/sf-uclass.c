@@ -11,6 +11,8 @@
 #include <dm/device-internal.h>
 #include "sf_internal.h"
 
+DECLARE_GLOBAL_DATA_PTR;
+
 int spi_flash_read_dm(struct udevice *dev, u32 offset, size_t len, void *buf)
 {
 	return sf_get_ops(dev)->read(dev, offset, len, buf);
@@ -25,14 +27,6 @@ int spi_flash_write_dm(struct udevice *dev, u32 offset, size_t len,
 int spi_flash_erase_dm(struct udevice *dev, u32 offset, size_t len)
 {
 	return sf_get_ops(dev)->erase(dev, offset, len);
-}
-
-int spi_flash_protect_dm(struct udevice *dev, u32 offset, size_t len, bool prot)
-{
-	if (prot)
-		return sf_get_ops(dev)->lock(dev, offset, len);
-	else
-		return sf_get_ops(dev)->unlock(dev, offset, len);
 }
 
 /*
@@ -52,7 +46,7 @@ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
 
 void spi_flash_free(struct spi_flash *flash)
 {
-	spi_flash_remove(flash->spi->dev);
+	device_remove(flash->spi->dev, DM_REMOVE_NORMAL);
 }
 
 int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
@@ -61,11 +55,17 @@ int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
 {
 	struct spi_slave *slave;
 	struct udevice *bus;
-	char name[30], *str;
+	char *str;
 	int ret;
+
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_USE_TINY_PRINTF)
+	str = "spi_flash";
+#else
+	char name[30];
 
 	snprintf(name, sizeof(name), "spi_flash@%d:%d", busnum, cs);
 	str = strdup(name);
+#endif
 	ret = spi_get_bus_and_cs(busnum, cs, max_hz, spi_mode,
 				  "spi_flash_std", str, &bus, &slave);
 	if (ret)
@@ -75,13 +75,29 @@ int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
 	return 0;
 }
 
-int spi_flash_remove(struct udevice *dev)
+static int spi_flash_post_bind(struct udevice *dev)
 {
-	return device_remove(dev);
+#if defined(CONFIG_NEEDS_MANUAL_RELOC)
+	struct dm_spi_flash_ops *ops = sf_get_ops(dev);
+	static int reloc_done;
+
+	if (!reloc_done) {
+		if (ops->read)
+			ops->read += gd->reloc_off;
+		if (ops->write)
+			ops->write += gd->reloc_off;
+		if (ops->erase)
+			ops->erase += gd->reloc_off;
+
+		reloc_done++;
+	}
+#endif
+	return 0;
 }
 
 UCLASS_DRIVER(spi_flash) = {
 	.id		= UCLASS_SPI_FLASH,
 	.name		= "spi_flash",
+	.post_bind	= spi_flash_post_bind,
 	.per_device_auto_alloc_size = sizeof(struct spi_flash),
 };

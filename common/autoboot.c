@@ -9,10 +9,15 @@
 #include <autoboot.h>
 #include <bootretry.h>
 #include <cli.h>
+#include <console.h>
 #include <fdtdec.h>
 #include <menu.h>
 #include <post.h>
 #include <u-boot/sha256.h>
+
+#ifdef is_boot_from_usb
+#include <environment.h>
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -49,14 +54,14 @@ static int slow_equals(u8 *a, u8 *b, int len)
 
 static int passwd_abort(uint64_t etime)
 {
-	const char *sha_env_str = getenv("bootstopkeysha256");
+	const char *sha_env_str = env_get("bootstopkeysha256");
 	u8 sha_env[SHA256_SUM_LEN];
 	u8 sha[SHA256_SUM_LEN];
 	char presskey[MAX_DELAY_STOP_STR];
 	const char *algo_name = "sha256";
 	u_int presskey_len = 0;
 	int abort = 0;
-	int size;
+	int size = sizeof(sha);
 	int ret;
 
 	if (sha_env_str == NULL)
@@ -108,8 +113,8 @@ static int passwd_abort(uint64_t etime)
 		int retry;
 	}
 	delaykey[] = {
-		{ .str = getenv("bootdelaykey"),  .retry = 1 },
-		{ .str = getenv("bootstopkey"),   .retry = 0 },
+		{ .str = env_get("bootdelaykey"),  .retry = 1 },
+		{ .str = env_get("bootstopkey"),   .retry = 0 },
 	};
 
 	char presskey[MAX_DELAY_STOP_STR];
@@ -181,15 +186,10 @@ static int passwd_abort(uint64_t etime)
  * Watch for 'delay' seconds for autoboot stop or autoboot delay string.
  * returns: 0 -  no key string, allow autoboot 1 - got key string, abort
  */
-static int abortboot_keyed(int bootdelay)
+static int __abortboot(int bootdelay)
 {
 	int abort;
 	uint64_t etime = endtick(bootdelay);
-
-#ifndef CONFIG_ZERO_BOOTDELAY_CHECK
-	if (bootdelay == 0)
-		return 0;
-#endif
 
 #  ifdef CONFIG_AUTOBOOT_PROMPT
 	/*
@@ -203,11 +203,6 @@ static int abortboot_keyed(int bootdelay)
 	if (!abort)
 		debug_bootkeys("key timeout\n");
 
-#ifdef CONFIG_SILENT_CONSOLE
-	if (abort)
-		gd->flags &= ~GD_FLG_SILENT;
-#endif
-
 	return abort;
 }
 
@@ -217,7 +212,7 @@ static int abortboot_keyed(int bootdelay)
 static int menukey;
 #endif
 
-static int abortboot_normal(int bootdelay)
+static int __abortboot(int bootdelay)
 {
 	int abort = 0;
 	unsigned long ts;
@@ -225,23 +220,17 @@ static int abortboot_normal(int bootdelay)
 #ifdef CONFIG_MENUPROMPT
 	printf(CONFIG_MENUPROMPT);
 #else
-	if (bootdelay >= 0)
-		printf("Hit any key to stop autoboot: %2d ", bootdelay);
+	printf("Hit any key to stop autoboot: %2d ", bootdelay);
 #endif
 
-#if defined CONFIG_ZERO_BOOTDELAY_CHECK
 	/*
 	 * Check if key already pressed
-	 * Don't check if bootdelay < 0
 	 */
-	if (bootdelay >= 0) {
-		if (tstc()) {	/* we got a key press	*/
-			(void) getc();  /* consume input	*/
-			puts("\b\b\b 0");
-			abort = 1;	/* don't auto boot	*/
-		}
+	if (tstc()) {	/* we got a key press	*/
+		(void) getc();  /* consume input	*/
+		puts("\b\b\b 0");
+		abort = 1;	/* don't auto boot	*/
 	}
-#endif
 
 	while ((bootdelay > 0) && (!abort)) {
 		--bootdelay;
@@ -266,6 +255,17 @@ static int abortboot_normal(int bootdelay)
 
 	putc('\n');
 
+	return abort;
+}
+# endif	/* CONFIG_AUTOBOOT_KEYED */
+
+static int abortboot(int bootdelay)
+{
+	int abort = 0;
+
+	if (bootdelay >= 0)
+		abort = __abortboot(bootdelay);
+
 #ifdef CONFIG_SILENT_CONSOLE
 	if (abort)
 		gd->flags &= ~GD_FLG_SILENT;
@@ -273,32 +273,23 @@ static int abortboot_normal(int bootdelay)
 
 	return abort;
 }
-# endif	/* CONFIG_AUTOBOOT_KEYED */
-
-static int abortboot(int bootdelay)
-{
-#ifdef CONFIG_AUTOBOOT_KEYED
-	return abortboot_keyed(bootdelay);
-#else
-	return abortboot_normal(bootdelay);
-#endif
-}
 
 static void process_fdt_options(const void *blob)
 {
-#if defined(CONFIG_OF_CONTROL)
+#if defined(CONFIG_OF_CONTROL) && defined(CONFIG_SYS_TEXT_BASE)
 	ulong addr;
+	printf("process_fdt_options\n");
 
 	/* Add an env variable to point to a kernel payload, if available */
 	addr = fdtdec_get_config_int(gd->fdt_blob, "kernel-offset", 0);
 	if (addr)
-		setenv_addr("kernaddr", (void *)(CONFIG_SYS_TEXT_BASE + addr));
+		env_set_addr("kernaddr", (void *)(CONFIG_SYS_TEXT_BASE + addr));
 
 	/* Add an env variable to point to a root disk, if available */
 	addr = fdtdec_get_config_int(gd->fdt_blob, "rootdisk-offset", 0);
 	if (addr)
-		setenv_addr("rootaddr", (void *)(CONFIG_SYS_TEXT_BASE + addr));
-#endif /* CONFIG_OF_CONTROL */
+		env_set_addr("rootaddr", (void *)(CONFIG_SYS_TEXT_BASE + addr));
+#endif /* CONFIG_OF_CONTROL && CONFIG_SYS_TEXT_BASE */
 }
 
 const char *bootdelay_process(void)
@@ -314,12 +305,28 @@ const char *bootdelay_process(void)
 	bootcount = bootcount_load();
 	bootcount++;
 	bootcount_store(bootcount);
-	setenv_ulong("bootcount", bootcount);
-	bootlimit = getenv_ulong("bootlimit", 10, 0);
+	env_set_ulong("bootcount", bootcount);
+	bootlimit = env_get_ulong("bootlimit", 10, 0);
 #endif /* CONFIG_BOOTCOUNT_LIMIT */
 
-	s = getenv("bootdelay");
+	printf("process_bootdelay\n");
+	s = env_get("bootdelay");
 	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
+
+#if defined(is_boot_from_usb)
+	if (is_boot_from_usb() && env_get("bootcmd_mfg")) {
+		disconnect_from_pc();
+		printf("Boot from USB for mfgtools\n");
+		bootdelay = 0;
+		set_default_env("Use default environment for \
+				 mfgtools\n");
+	} else if (is_boot_from_usb()) {
+		printf("Boot from USB for uuu\n");
+		env_set("bootcmd", "fastboot 0");
+	} else {
+		printf("Normal Boot\n");
+	}
+#endif
 
 #ifdef CONFIG_OF_CONTROL
 	bootdelay = fdtdec_get_config_int(gd->fdt_blob, "bootdelay",
@@ -335,17 +342,24 @@ const char *bootdelay_process(void)
 
 #ifdef CONFIG_POST
 	if (gd->flags & GD_FLG_POSTFAIL) {
-		s = getenv("failbootcmd");
+		s = env_get("failbootcmd");
 	} else
 #endif /* CONFIG_POST */
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	if (bootlimit && (bootcount > bootlimit)) {
 		printf("Warning: Bootlimit (%u) exceeded. Using altbootcmd.\n",
 		       (unsigned)bootlimit);
-		s = getenv("altbootcmd");
+		s = env_get("altbootcmd");
 	} else
 #endif /* CONFIG_BOOTCOUNT_LIMIT */
-		s = getenv("bootcmd");
+		s = env_get("bootcmd");
+
+#if defined(is_boot_from_usb)
+	if (is_boot_from_usb() && env_get("bootcmd_mfg")) {
+		s = env_get("bootcmd_mfg");
+		printf("Run bootcmd_mfg: %s\n", s);
+	}
+#endif
 
 	process_fdt_options(gd->fdt_blob);
 	stored_bootdelay = bootdelay;
@@ -371,7 +385,7 @@ void autoboot_command(const char *s)
 
 #ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {
-		s = getenv("menucmd");
+		s = env_get("menucmd");
 		if (s)
 			run_command_list(s, -1, 0);
 	}

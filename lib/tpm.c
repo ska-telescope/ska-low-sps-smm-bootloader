@@ -7,7 +7,6 @@
 
 #include <common.h>
 #include <dm.h>
-#include <tis.h>
 #include <tpm.h>
 #include <asm/unaligned.h>
 #include <u-boot/sha1.h>
@@ -93,11 +92,14 @@ int pack_byte_string(uint8_t *str, size_t size, const char *format, ...)
 			break;
 		default:
 			debug("Couldn't recognize format string\n");
+			va_end(args);
 			return -1;
 		}
 
-		if (offset + length > size)
+		if (offset + length > size) {
+			va_end(args);
 			return -1;
+		}
 
 		switch (*format) {
 		case 'b':
@@ -164,12 +166,15 @@ int unpack_byte_string(const uint8_t *str, size_t size, const char *format, ...)
 			length = va_arg(args, uint32_t);
 			break;
 		default:
+			va_end(args);
 			debug("Couldn't recognize format string\n");
 			return -1;
 		}
 
-		if (offset + length > size)
+		if (offset + length > size) {
+			va_end(args);
 			return -1;
+		}
 
 		switch (*format) {
 		case 'b':
@@ -230,9 +235,10 @@ static uint32_t tpm_return_code(const void *response)
 static uint32_t tpm_sendrecv_command(const void *command,
 		void *response, size_t *size_ptr)
 {
+	struct udevice *dev;
+	int err, ret;
 	uint8_t response_buffer[COMMAND_BUFFER_SIZE];
 	size_t response_length;
-	uint32_t err;
 
 	if (response) {
 		response_length = *size_ptr;
@@ -240,19 +246,13 @@ static uint32_t tpm_sendrecv_command(const void *command,
 		response = response_buffer;
 		response_length = sizeof(response_buffer);
 	}
-#ifdef CONFIG_DM_TPM
-	struct udevice *dev;
-	int ret;
 
-	ret = uclass_first_device(UCLASS_TPM, &dev);
+	ret = uclass_first_device_err(UCLASS_TPM, &dev);
 	if (ret)
 		return ret;
 	err = tpm_xfer(dev, command, tpm_command_size(command),
 		       response, &response_length);
-#else
-	err = tis_sendrecv(command, tpm_command_size(command),
-			response, &response_length);
-#endif
+
 	if (err < 0)
 		return TPM_LIB_ERROR;
 	if (size_ptr)
@@ -264,21 +264,12 @@ static uint32_t tpm_sendrecv_command(const void *command,
 int tpm_init(void)
 {
 	int err;
-
-#ifdef CONFIG_DM_TPM
 	struct udevice *dev;
 
-	err = uclass_first_device(UCLASS_TPM, &dev);
+	err = uclass_first_device_err(UCLASS_TPM, &dev);
 	if (err)
 		return err;
 	return tpm_open(dev);
-#else
-	err = tis_init();
-	if (err)
-		return err;
-
-	return tis_open();
-#endif
 }
 
 uint32_t tpm_startup(enum tpm_startup_type mode)
@@ -619,14 +610,24 @@ uint32_t tpm_get_permanent_flags(struct tpm_permanent_flags *pflags)
 		0x0, 0x0, 0x0, 0x4,	/* subcap size */
 		0x0, 0x0, 0x1, 0x8,	/* subcap value */
 	};
+	const size_t data_size_offset = TPM_HEADER_SIZE;
+	const size_t data_offset = TPM_HEADER_SIZE + sizeof (uint32_t);
 	uint8_t response[COMMAND_BUFFER_SIZE];
 	size_t response_length = sizeof(response);
 	uint32_t err;
+	uint32_t data_size;
 
 	err = tpm_sendrecv_command(command, response, &response_length);
 	if (err)
 		return err;
-	memcpy(pflags, response + TPM_HEADER_SIZE, sizeof(*pflags));
+	if (unpack_byte_string(response, response_length, "d",
+			       data_size_offset, &data_size))
+		return TPM_LIB_ERROR;
+	if (data_size < sizeof(*pflags))
+		return TPM_LIB_ERROR;
+	if (unpack_byte_string(response, response_length, "s",
+			       data_offset, pflags, sizeof(*pflags)))
+		return TPM_LIB_ERROR;
 
 	return 0;
 }
@@ -658,6 +659,35 @@ uint32_t tpm_get_permissions(uint32_t index, uint32_t *perm)
 
 	return 0;
 }
+
+#ifdef CONFIG_TPM_FLUSH_RESOURCES
+uint32_t tpm_flush_specific(uint32_t key_handle, uint32_t resource_type)
+{
+	const uint8_t command[18] = {
+		0x00, 0xc1,             /* TPM_TAG */
+		0x00, 0x00, 0x00, 0x12, /* parameter size */
+		0x00, 0x00, 0x00, 0xba, /* TPM_COMMAND_CODE */
+		0x00, 0x00, 0x00, 0x00, /* key handle */
+		0x00, 0x00, 0x00, 0x00, /* resource type */
+	};
+	const size_t key_handle_offset = 10;
+	const size_t resource_type_offset = 14;
+	uint8_t buf[COMMAND_BUFFER_SIZE], response[COMMAND_BUFFER_SIZE];
+	size_t response_length = sizeof(response);
+	uint32_t err;
+
+	if (pack_byte_string(buf, sizeof(buf), "sdd",
+			     0, command, sizeof(command),
+			     key_handle_offset, key_handle,
+			     resource_type_offset, resource_type))
+		return TPM_LIB_ERROR;
+
+	err = tpm_sendrecv_command(buf, response, &response_length);
+	if (err)
+		return err;
+	return 0;
+}
+#endif /* CONFIG_TPM_FLUSH_RESOURCES */
 
 #ifdef CONFIG_TPM_AUTH_SESSIONS
 
@@ -981,4 +1011,87 @@ uint32_t tpm_get_pub_key_oiap(uint32_t key_handle, const void *usage_auth,
 	return 0;
 }
 
+#ifdef CONFIG_TPM_LOAD_KEY_BY_SHA1
+uint32_t tpm_find_key_sha1(const uint8_t auth[20], const uint8_t
+			   pubkey_digest[20], uint32_t *handle)
+{
+	uint16_t key_count;
+	uint32_t key_handles[10];
+	uint8_t buf[288];
+	uint8_t *ptr;
+	uint32_t err;
+	uint8_t digest[20];
+	size_t buf_len;
+	unsigned int i;
+
+	/* fetch list of already loaded keys in the TPM */
+	err = tpm_get_capability(TPM_CAP_HANDLE, TPM_RT_KEY, buf, sizeof(buf));
+	if (err)
+		return -1;
+	key_count = get_unaligned_be16(buf);
+	ptr = buf + 2;
+	for (i = 0; i < key_count; ++i, ptr += 4)
+		key_handles[i] = get_unaligned_be32(ptr);
+
+	/* now search a(/ the) key which we can access with the given auth */
+	for (i = 0; i < key_count; ++i) {
+		buf_len = sizeof(buf);
+		err = tpm_get_pub_key_oiap(key_handles[i], auth, buf, &buf_len);
+		if (err && err != TPM_AUTHFAIL)
+			return -1;
+		if (err)
+			continue;
+		sha1_csum(buf, buf_len, digest);
+		if (!memcmp(digest, pubkey_digest, 20)) {
+			*handle = key_handles[i];
+			return 0;
+		}
+	}
+	return 1;
+}
+#endif /* CONFIG_TPM_LOAD_KEY_BY_SHA1 */
+
 #endif /* CONFIG_TPM_AUTH_SESSIONS */
+
+uint32_t tpm_get_random(void *data, uint32_t count)
+{
+	const uint8_t command[14] = {
+		0x0, 0xc1,		/* TPM_TAG */
+		0x0, 0x0, 0x0, 0xe,	/* parameter size */
+		0x0, 0x0, 0x0, 0x46,	/* TPM_COMMAND_CODE */
+	};
+	const size_t length_offset = 10;
+	const size_t data_size_offset = 10;
+	const size_t data_offset = 14;
+	uint8_t buf[COMMAND_BUFFER_SIZE], response[COMMAND_BUFFER_SIZE];
+	size_t response_length = sizeof(response);
+	uint32_t data_size;
+	uint8_t *out = data;
+
+	while (count > 0) {
+		uint32_t this_bytes = min((size_t)count,
+					  sizeof (response) - data_offset);
+		uint32_t err;
+
+		if (pack_byte_string(buf, sizeof(buf), "sd",
+				     0, command, sizeof(command),
+				     length_offset, this_bytes))
+			return TPM_LIB_ERROR;
+		err = tpm_sendrecv_command(buf, response, &response_length);
+		if (err)
+			return err;
+		if (unpack_byte_string(response, response_length, "d",
+				       data_size_offset, &data_size))
+			return TPM_LIB_ERROR;
+		if (data_size > count)
+			return TPM_LIB_ERROR;
+		if (unpack_byte_string(response, response_length, "s",
+				       data_offset, out, data_size))
+			return TPM_LIB_ERROR;
+
+		count -= data_size;
+		out += data_size;
+	}
+
+	return 0;
+}

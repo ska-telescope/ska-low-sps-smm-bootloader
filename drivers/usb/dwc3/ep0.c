@@ -81,8 +81,8 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		trb->ctrl |= (DWC3_TRB_CTRL_IOC
 				| DWC3_TRB_CTRL_LST);
 
-	dwc3_flush_cache((int)buf_dma, len);
-	dwc3_flush_cache((int)trb, sizeof(*trb));
+	dwc3_flush_cache((uintptr_t)buf_dma, len);
+	dwc3_flush_cache((uintptr_t)trb, sizeof(*trb));
 
 	if (chain)
 		return 0;
@@ -391,7 +391,6 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			recip;
 	u32			wValue;
 	u32			wIndex;
-	u32			reg;
 	int			ret;
 	enum usb_device_state	state;
 
@@ -415,27 +414,12 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
-
-			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-			if (set)
-				reg |= DWC3_DCTL_INITU1ENA;
-			else
-				reg &= ~DWC3_DCTL_INITU1ENA;
-			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 			break;
-
 		case USB_DEVICE_U2_ENABLE:
 			if (state != USB_STATE_CONFIGURED)
 				return -EINVAL;
 			if (dwc->speed != DWC3_DSTS_SUPERSPEED)
 				return -EINVAL;
-
-			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-			if (set)
-				reg |= DWC3_DCTL_INITU2ENA;
-			else
-				reg &= ~DWC3_DCTL_INITU2ENA;
-			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 			break;
 
 		case USB_DEVICE_LTM_ENABLE:
@@ -539,7 +523,6 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	enum usb_device_state state = dwc->gadget.state;
 	u32 cfg;
 	int ret;
-	u32 reg;
 
 	dwc->start_config_issued = false;
 	cfg = le16_to_cpu(ctrl->wValue);
@@ -562,14 +545,6 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 			if (ret == 0)
 				usb_gadget_set_state(&dwc->gadget,
 						USB_STATE_CONFIGURED);
-
-			/*
-			 * Enable transition to U1/U2 state when
-			 * nothing is pending from application.
-			 */
-			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-			reg |= (DWC3_DCTL_ACCEPTU1ENA | DWC3_DCTL_ACCEPTU2ENA);
-			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
 			dwc->resize_fifos = true;
 			dev_dbg(dwc->dev, "resize FIFOs flag SET");
@@ -790,7 +765,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	if (!r)
 		return;
 
-	dwc3_flush_cache((int)trb, sizeof(*trb));
+	dwc3_flush_cache((uintptr_t)trb, sizeof(*trb));
 
 	status = DWC3_TRB_SIZE_TRBSTS(trb->size);
 	if (status == DWC3_TRBSTS_SETUP_PENDING) {
@@ -821,7 +796,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 			ur->actual += transferred;
 
 			trb++;
-			dwc3_flush_cache((int)trb, sizeof(*trb));
+			dwc3_flush_cache((uintptr_t)trb, sizeof(*trb));
 			length = trb->size & DWC3_TRB_SIZE_MASK;
 
 			ep0->free_slot = 0;
@@ -831,7 +806,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 					maxp);
 		transferred = min_t(u32, ur->length - transferred,
 				    transfer_size - length);
-		dwc3_flush_cache((int)dwc->ep0_bounce, DWC3_EP0_BOUNCE_SIZE);
+		dwc3_flush_cache((uintptr_t)dwc->ep0_bounce, DWC3_EP0_BOUNCE_SIZE);
 		memcpy(buf, dwc->ep0_bounce, transferred);
 	} else {
 		transferred = ur->length - length;

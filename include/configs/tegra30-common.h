@@ -9,15 +9,6 @@
 #define _TEGRA30_COMMON_H_
 #include "tegra-common.h"
 
-/* Cortex-A9 uses a cache line size of 32 bytes */
-#define CONFIG_SYS_CACHELINE_SIZE	32
-
-/*
- * Errata configuration
- */
-#define CONFIG_ARM_ERRATA_743622
-#define CONFIG_ARM_ERRATA_751472
-
 /*
  * NS16550 Configuration
  */
@@ -31,7 +22,6 @@
 /*-----------------------------------------------------------------------
  * Physical Memory Map
  */
-#define CONFIG_SYS_TEXT_BASE	0x80110000
 
 /*
  * Memory layout for where various images get loaded by boot scripts:
@@ -73,6 +63,5 @@
 /* For USB EHCI controller */
 #define CONFIG_EHCI_IS_TDI
 #define CONFIG_USB_EHCI_TXFIFO_THRESH	0x10
-#define CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS 1
 
 #endif /* _TEGRA30_COMMON_H_ */

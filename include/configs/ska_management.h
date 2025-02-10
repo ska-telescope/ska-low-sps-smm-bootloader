@@ -1,9 +1,8 @@
 /*
- * Copyright (C) 2018 Sanitas EG
+ * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright 2018-2019 NXP
  *
- * Author: Cristian Albanese <cristian.albanese@sanitaseg.com>
- *
- * Configuration settings for the Sanitas Ska-Management board.
+ * Configuration settings for the Freescale i.MX6Q SabreSD board.
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
@@ -12,203 +11,387 @@
 #define __SKA_MANAGEMENT_CONFIG_H
 
 #include "mx6_common.h"
-/*
-#include <linux/sizes.h>
-#include <asm/arch/imx-regs.h>
-#include <asm/imx-common/gpio.h>
-*/
+#include "imx_env.h"
 
-#define CONFIG_MACH_TYPE        3980 // ???
-#define CONFIG_CONSOLE_DEV      "ttymxc1"
-#define CONFIG_BAUDRATE		115200
-#define CONFIG_MMCROOT          "/dev/mmcblk1p2"
-#define CONFIG_USE_BOOTSCRIPT
+#undef CONFIG_LDO_BYPASS_CHECK
+
+#define CONFIG_MACH_TYPE	3980
+#define CONFIG_MXC_UART
+#define CONFIG_MXC_UART_BASE	UART2_BASE
+#define CONSOLE_DEV		"ttymxc1"
+
 
 #define PHYS_SDRAM_SIZE		(1u * 1024 * 1024 * 1024) // 1 GB
 
-#define CONFIG_MX6
-
-#define CONFIG_DISPLAY_CPUINFO
-#define CONFIG_DISPLAY_BOARDINFO
-
-#define CONFIG_CMDLINE_TAG
-#define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_INITRD_TAG
-#define CONFIG_REVISION_TAG
+#define CONFIG_IMX_THERMAL
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		(10 * SZ_1M)
+#define CONFIG_SYS_MALLOC_LEN		(16 * SZ_1M)
 
-#define CONFIG_BOARD_EARLY_INIT_F
-#define CONFIG_BOARD_LATE_INIT
-#define CONFIG_MXC_GPIO
 
-#define CONFIG_MXC_UART_BASE    UART2_BASE
-#define CONFIG_MXC_UART
 
-#define CONFIG_CMD_FUSE
+
+#ifdef CONFIG_CMD_SF
+#define CONFIG_SF_DEFAULT_CS   0
+#endif
+
+
+
+
+/*BOOT and MMC CMD DEFINES*/
+#define CONFIG_ENV_OVERWRITE
 #ifdef CONFIG_CMD_FUSE
 	#define CONFIG_MXC_OCOTP
 #endif
 
-/* MMC */
-#define CONFIG_FSL_ESDHC
-#define CONFIG_FSL_USDHC
-#define CONFIG_SYS_FSL_ESDHC_ADDR	0
-
-#define CONFIG_MMC
-#define CONFIG_CMD_MMC
-#define CONFIG_GENERIC_MMC
+#define CONFIG_ENV_IS_IN_MMC
 #define CONFIG_SUPPORT_EMMC_BOOT
-#define CONFIG_BOUNCE_BUFFER
-#define CONFIG_CMD_EXT2
-#define CONFIG_CMD_FAT
-#define CONFIG_DOS_PARTITION
+#define CONFIG_SYS_FSL_USDHC_NUM	2
+#define CONFIG_SYS_MMC_ENV_DEV		0
+#define CONFIG_SYS_MMC_ENV_PART		1
+#define CONFIG_MMCROOT			"/dev/mmcblk0p2"
+#define CONFIG_SYS_FSL_ESDHC_ADDR	USDHC1_BASE_ADDR
+#define CONFIG_SYS_SD_ENV_DEV	1
+#define CONFIG_MMCROOT_SD		"/dev/mmcblk1p2"  	/* USDHC2 */
+#define CONFYG_EMMC_PART_SEC  3
+#define CONFIG_MMCROOT_SEC	  "/dev/mmcblk0p4"
 
-/* SATA */
-#define CONFIG_CMD_SATA
+#undef is_boot_from_usb
+
+/* FEC Config*/
+#define CONFIG_FEC_MXC
+#define CONFIG_MII
+#define IMX_FEC_BASE			ENET_BASE_ADDR
+#define CONFIG_FEC_XCV_TYPE		RGMII
+#ifdef CONFIG_DM_ETH
+#define CONFIG_ETHPRIME			"eth0"
+#else
+#define CONFIG_ETHPRIME			"FEC"
+#endif
+#define CONFIG_FEC_MXC_PHYADDR		0
+
+#define CONFIG_PHYLIB
+#define CONFIG_PHY_MARVELL
+
+/* USB Configs */
+#ifdef CONFIG_CMD_USB
+#define CONFIG_EHCI_HCD_INIT_AFTER_RESET
+#define CONFIG_USB_HOST_ETHER
+#define CONFIG_USB_ETHER_ASIX
+#define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
+#define CONFIG_MXC_USB_FLAGS		0
+#define CONFIG_USB_MAX_CONTROLLER_COUNT	1 /* Enabled USB controller number */
+#endif
+
+
+
+
+#ifdef CONFIG_MX6S
+#define SYS_NOSMP "nosmp"
+#else
+#define SYS_NOSMP
+#endif
+
+#ifdef CONFIG_NAND_BOOT
+#define MFG_NAND_PARTITION "mtdparts=8000000.nor:1m(boot),-(rootfs)\\;gpmi-nand:64m(nandboot),16m(nandkernel),16m(nanddtb),16m(nandtee),-(nandrootfs) "
+#else
+#define MFG_NAND_PARTITION ""
+#endif
+
+#define CONFIG_CMD_READ
+#define CONFIG_SERIAL_TAG
+
+
+
+
+#define CONFIG_MFG_ENV_SETTINGS \
+	"mfgtool_args=setenv bootargs console=${console},${baudrate} " \
+		"rdinit=/linuxrc " \
+		"g_mass_storage.stall=0 g_mass_storage.removable=1 " \
+		"g_mass_storage.file=/fat g_mass_storage.ro=1 " \
+		"g_mass_storage.idVendor=0x066F g_mass_storage.idProduct=0x37FF "\
+		"g_mass_storage.iSerialNumber=\"\" "\
+		"\0" \
+	"initrd_addr=0x12C00000\0" \
+	"initrd_high=0xffffffff\0" \
+	"echo START MFGTOOLS"		\
+	"bootcmd_mfg=run mfgtool_args;bootz ${loadaddr} ${initrd_addr} ${fdt_addr};\0" \
+
+
+
+
+
+
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	"script=boot.scr\0" \
+	"image=zImage\0" \
+	"console=" CONSOLE_DEV "\0" \
+	"baudrate=115200\0" \
+	"fdt_addr=0x18000000\0" \
+	"fdt_high=0xffffffff\0" \
+	"initrd_high=0xffffffff\0" \
+	"fdt_file=ska-management.dtb\0" \
+	"boot_fdt=yes\0" \
+	"ip_dyn=yes\0" \
+	"mmcdev="__stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
+	"mmcpart="__stringify(CONFIG_SYS_MMC_ENV_PART)"\0" \
+	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
+	"mmcpart1="__stringify(CONFYG_EMMC_PART_SEC)"\0" \
+	"mmcroot1=" CONFIG_MMCROOT_SEC " rootwait rw\0" \
+	"mmcautodetect=yes\0" \
+	"mmcargs=setenv bootargs console=${console},${baudrate} " \
+		"root=${mmcroot}\0" \
+	"loadimage=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${image}\0" \
+	"loadfdt=fatload mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${fdt_file}\0" \
+	"mmcargs1=setenv bootargs console=${console},${baudrate} " \
+		"root=${mmcroot1}\0" \
+	"loadimage1=fatload mmc ${mmcdev}:${mmcpart1} ${loadaddr} ${image}\0" \
+	"loadfdt1=fatload mmc ${mmcdev}:${mmcpart1} ${fdt_addr} ${fdt_file}\0" \
+	"mmcboot=echo Booting from mmc ...; " \
+		"if test ${fs_part} = 0; then " \
+			"echo running mmcargs...; " \
+			"run mmcargs; " \
+		"else " \
+			"echo running mmcargs...; " \
+			"run mmcargs1; " \
+		"fi; " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if test ${krn_part} = 0; then " \
+				"if run loadfdt; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
+				"else " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
+				"fi; " \
+			"else " \
+				"if run loadfdt1; then " \
+					"bootz ${loadaddr} - ${fdt_addr}; " \
+				"else " \
+					"if test ${boot_fdt} = try; then " \
+						"bootz; " \
+					"else " \
+						"echo WARN: Cannot load the DT; " \
+					"fi; " \
+				"fi; " \
+			"fi; " \
+		"else " \
+			"bootz; " \
+		"fi; \0"\
+	"sdmmcroot=" CONFIG_MMCROOT_SD " rootwait rw\0" \
+	"sddev="__stringify(CONFIG_SYS_SD_ENV_DEV)"\0" \
+	"sdpart=1\0" \
+	"loadfdt_sd=fatload mmc ${sddev}:${sdpart} ${fdt_addr} ${fdt_file}\0"\
+	"sdargs=setenv bootargs console=${console},${baudrate} " \
+		"root=${sdmmcroot}\0" \
+    "sdloadimage=fatload mmc ${sddev}:${sdpart} ${loadaddr} ${image}\0" \
+	"sdboot=echo Booting from sd ...; " \
+		"run sdargs; " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if run loadfdt_sd; then " \
+				"bootz ${loadaddr} - ${fdt_addr}; " \
+			"else " \
+				"if test ${boot_fdt} = try; then " \
+					"bootz; " \
+				"else " \
+					"echo WARN: Cannot load the DT; " \
+				"fi; " \
+			"fi; " \
+		"fi;\0" \
+	"netargs=setenv bootargs console=${console},${baudrate} " \
+		"root=/dev/nfs " \
+	"ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp\0" \
+		"netboot=echo Booting from net ...; " \
+		"run netargs; " \
+		"if test ${ip_dyn} = yes; then " \
+			"setenv get_cmd dhcp; " \
+		"else " \
+			"setenv get_cmd tftp; " \
+		"fi; " \
+		"${get_cmd} ${image}; " \
+		"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
+			"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+				"bootz ${loadaddr} - ${fdt_addr}; " \
+			"else " \
+				"if test ${boot_fdt} = try; then " \
+					"bootz; " \
+				"else " \
+					"echo WARN: Cannot load the DT; " \
+				"fi; " \
+			"fi; " \
+		"else " \
+			"bootz; " \
+        "fi;\0"
+
+/*  use this define ! */
+
+
+/*
+ * 	   "if gpio 133; then " \
+	   	   "echo Read GPIO5_5 High; " \
+	   "else " \
+	   	   "echo Read GPIO5_5 Low;"	\
+	   "fi; " \
+	   "echo Config GPIO5_5 as input; " \
+	   "gpio 133 input; " \
+ * */
+#define CONFIG_BOOTCOMMAND \
+	   "echo U-BOOT from BOOTCOMMAND ...; " \
+	   "mii write 9 0 9; " \
+	   "if mmc dev ${sddev}; then " \
+			"echo find SD ...; " \
+			   "if run sdloadimage; then " \
+       			   "echo run sdboot ...; " \
+				   "run sdboot; " \
+			   "else run netboot; " \
+			   "fi; " \
+	   "else " \
+       	    "echo not find SD .. try mmcdev ...; " \
+	        "mmc dev ${mmcdev};" \
+            "if mmc rescan; then " \
+       	    	"echo find MMC ...; " \
+       	    	"if test ${fs_part} = 0; then " \
+					"if run loadimage; then " \
+						"run mmcboot; " \
+					"else "	\
+						"run netboot; " \
+					"fi; " \
+				"else " \
+					"if run loadimage1; then " \
+						"run mmcboot; " \
+					"else "	\
+						"run netboot; " \
+					"fi; " \
+				"fi; " \
+            "fi; " \
+        "fi; " \
+
+
+
+#define CONFIG_ARP_TIMEOUT     200UL
+
+#define CONFIG_SYS_MEMTEST_START       0x10000000
+#define CONFIG_SYS_MEMTEST_END         0x10010000
+#define CONFIG_SYS_MEMTEST_SCRATCH     0x10800000
+
+/* Physical Memory Map */
+#define CONFIG_NR_DRAM_BANKS           1
+#define PHYS_SDRAM                     MMDC0_ARB_BASE_ADDR
+
+#define CONFIG_SYS_SDRAM_BASE          PHYS_SDRAM
+#define CONFIG_SYS_INIT_RAM_ADDR       IRAM_BASE_ADDR
+#define CONFIG_SYS_INIT_RAM_SIZE       IRAM_SIZE
+
+#define CONFIG_SYS_INIT_SP_OFFSET \
+	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR \
+	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
+
+/* Environment organization */
+#define CONFIG_ENV_SIZE			(8 * 1024)
+
+#ifdef CONFIG_SATA
 #define CONFIG_DWC_AHSATA
 #define CONFIG_SYS_SATA_MAX_DEVICE	1
 #define CONFIG_DWC_AHSATA_PORT_ID	0
 #define CONFIG_DWC_AHSATA_BASE_ADDR	SATA_ARB_BASE_ADDR
 #define CONFIG_LBA48
 #define CONFIG_LIBATA
+#endif
 
-/* NETWORK */
-#define CONFIG_CMD_PING
-#define CONFIG_CMD_DHCP
-#define CONFIG_CMD_MII
-#define CONFIG_FEC_MXC
-#define CONFIG_MII
-#define IMX_FEC_BASE			ENET_BASE_ADDR
-#define CONFIG_FEC_XCV_TYPE		RGMII
-#define CONFIG_ETHPRIME			"FEC"
-#define CONFIG_FEC_MXC_PHYADDR	0
-#undef CONFIG_PHY_LED_TXRX
-#define CONFIG_PHYLIB
-#define CONFIG_PHY_MARVELL
+#ifdef CONFIG_CMD_SF
+#define CONFIG_SPI_FLASH
+#define CONFIG_SPI_FLASH_STMICRO
+#define CONFIG_MXC_SPI
+#define CONFIG_SF_DEFAULT_BUS  0
+#define CONFIG_SF_DEFAULT_SPEED 20000000
+#define CONFIG_SF_DEFAULT_MODE (SPI_MODE_0)
+#endif
 
-/* I2C */
-#define CONFIG_CMD_I2C
+#ifdef CONFIG_MTD_NOR_FLASH
+#define CONFIG_SYS_FLASH_BASE           WEIM_ARB_BASE_ADDR
+#define CONFIG_SYS_FLASH_SECT_SIZE      (128 * 1024)
+#define CONFIG_SYS_MAX_FLASH_BANKS 1    /* max number of memory banks */
+#define CONFIG_SYS_MAX_FLASH_SECT 256   /* max number of sectors on one chip */
+#define CONFIG_SYS_FLASH_CFI            /* Flash memory is CFI compliant */
+#define CONFIG_FLASH_CFI_DRIVER         /* Use drivers/cfi_flash.c */
+#define CONFIG_SYS_FLASH_USE_BUFFER_WRITE /* Use buffered writes*/
+#define CONFIG_SYS_FLASH_EMPTY_INFO
+#define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_16BIT
+#endif
+
+#ifdef CONFIG_CMD_NAND
+/* NAND flash command */
+#define CONFIG_CMD_NAND_TRIMFFS
+
+/* NAND stuff */
+#define CONFIG_NAND_MXS
+#define CONFIG_SYS_MAX_NAND_DEVICE     1
+#define CONFIG_SYS_NAND_BASE           0x40000000
+#define CONFIG_SYS_NAND_5_ADDR_CYCLE
+#define CONFIG_SYS_NAND_ONFI_DETECTION
+
+/* DMA stuff, needed for GPMI/MXS NAND support */
+#define CONFIG_APBH_DMA
+#define CONFIG_APBH_DMA_BURST
+#define CONFIG_APBH_DMA_BURST8
+#endif
+
+#if defined(CONFIG_ENV_IS_IN_MMC)
+#define CONFIG_ENV_OFFSET		(896 * 1024)
+#elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
+#define CONFIG_ENV_OFFSET              (896 * 1024)
+#define CONFIG_ENV_SECT_SIZE           (64 * 1024)
+#define CONFIG_ENV_SPI_BUS             CONFIG_SF_DEFAULT_BUS
+#define CONFIG_ENV_SPI_CS              CONFIG_SF_DEFAULT_CS
+#define CONFIG_ENV_SPI_MODE            CONFIG_SF_DEFAULT_MODE
+#define CONFIG_ENV_SPI_MAX_HZ          CONFIG_SF_DEFAULT_SPEED
+#elif defined(CONFIG_ENV_IS_IN_FLASH)
+#undef CONFIG_ENV_SIZE
+#define CONFIG_ENV_SIZE                        CONFIG_SYS_FLASH_SECT_SIZE
+#define CONFIG_ENV_SECT_SIZE           CONFIG_SYS_FLASH_SECT_SIZE
+#define CONFIG_ENV_OFFSET              (7 * CONFIG_SYS_FLASH_SECT_SIZE)
+#elif defined(CONFIG_ENV_IS_IN_NAND)
+#undef CONFIG_ENV_SIZE
+#define CONFIG_ENV_OFFSET              (60 << 20)
+#define CONFIG_ENV_SECT_SIZE           (128 << 10)
+#define CONFIG_ENV_SIZE                        CONFIG_ENV_SECT_SIZE
+#elif defined(CONFIG_ENV_IS_IN_SATA)
+#define CONFIG_ENV_OFFSET		(896 * 1024)
+#define CONFIG_SYS_SATA_ENV_DEV		0
+#define CONFIG_SYS_DCACHE_OFF /* remove when sata driver support cache */
+#endif
+
+/* I2C Configs */
+#ifndef CONFIG_DM_I2C
 #define CONFIG_SYS_I2C
+#endif
+#ifdef CONFIG_CMD_I2C
 #define CONFIG_SYS_I2C_MXC
-#define CONFIG_SYS_I2C_MXC_I2C1
-#define CONFIG_SYS_I2C_MXC_I2C2
-#define CONFIG_SYS_I2C_MXC_I2C3
+#define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
+#define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
+#define CONFIG_SYS_I2C_MXC_I2C3		/* enable I2C bus 3 */
 #define CONFIG_SYS_I2C_SPEED		400000
-
-#define CONFIG_CMD_EEPROM
-#define CONFIG_SYS_I2C_EEPROM_ADDR              0x50 // U49
-#define CONFIG_SYS_I2C_EEPROM_ADDR_LEN          1 // 1 byte Address
-#define CONFIG_SYS_EEPROM_PAGE_WRITE_BITS       4 // 16 bytes Page
-#define CONFIG_SYS_EEPROM_PAGE_WRITE_DELAY_MS   5 // 3ms typ
-#define CONFIG_SYS_EEPROM_MAC_OFFSET			0xFA
-
-/* Allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
-#define CONFIG_CONS_INDEX              1
-
-#define CONFIG_CMD_BMODE
-#define CONFIG_CMD_BOOTZ
-#define CONFIG_CMD_SETEXPR
-#undef CONFIG_CMD_IMLS
-
-#undef CONFIG_BOOTDELAY
-#define CONFIG_BOOTDELAY		1
-
-#define CONFIG_LOADADDR			0x12000000
-#define CONFIG_SYS_TEXT_BASE	0x17800000
-
-#define CONFIG_ARP_TIMEOUT     200UL
-
-/* Miscellaneous configurable options */
-#undef CONFIG_SYS_PROMPT
-#define CONFIG_SYS_PROMPT              "8==> "
-#define CONFIG_SYS_LONGHELP
-#define CONFIG_SYS_HUSH_PARSER
-#define CONFIG_SYS_PROMPT_HUSH_PS2     "> "
-#define CONFIG_AUTO_COMPLETE
-
-#define CONFIG_SYS_MEMTEST_START	0x10000000
-#define CONFIG_SYS_MEMTEST_END		0x10010000
-#define CONFIG_SYS_MEMTEST_SCRATCH	0x10800000
-
-#define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
-
-#define CONFIG_CMDLINE_EDITING
-#define CONFIG_STACKSIZE		(128 * 1024)
-
-/* Physical Memory Map */
-#define CONFIG_NR_DRAM_BANKS		1
-#define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
-
-#define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM
-#define CONFIG_SYS_INIT_RAM_ADDR	IRAM_BASE_ADDR
-#define CONFIG_SYS_INIT_RAM_SIZE	IRAM_SIZE
-
-#define CONFIG_SYS_INIT_SP_OFFSET	(CONFIG_SYS_INIT_RAM_SIZE - GENERATED_GBL_DATA_SIZE)
-#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
-
-/* FLASH and environment organization */
-#define CONFIG_SYS_NO_FLASH
-
-#define CONFIG_ENV_SIZE			(8 * 1024)
-
-#define CONFIG_ENV_IS_IN_MMC
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_ENV_OFFSET		(6 * 64 * 1024)
 #endif
 
-#define CONFIG_OF_LIBFDT
-
-#ifndef CONFIG_SYS_DCACHE_OFF
-#define CONFIG_CMD_CACHE
+/* PMIC */
+#ifndef CONFIG_DM_PMIC
+#define CONFIG_POWER
+#define CONFIG_POWER_I2C
+#define CONFIG_POWER_PFUZE100
+#define CONFIG_POWER_PFUZE100_I2C_ADDR 0x08
 #endif
-
-#define CONFIG_SYS_FSL_USDHC_NUM	2
-#if defined(CONFIG_ENV_IS_IN_MMC)
-	#define CONFIG_SYS_MMC_ENV_DEV	0	/* SDHC1 */
-#endif
-
-/*
- * PCI express
- */
-/* 
-#define CONFIG_CMD_PCI
-#ifdef CONFIG_CMD_PCI
-	#define CONFIG_PCI
-	#define CONFIG_PCI_PNP
-	#define CONFIG_PCI_SCAN_SHOW
-	#define CONFIG_PCIE_IMX
-	#define CONFIG_PCIE_IMX_PERST_GPIO 
-#endif
-*/
-#define CONFIG_CMD_PCI
-#ifdef CONFIG_CMD_PCI
-	#define CONFIG_PCI
-	#define CONFIG_PCI_PNP
-	#define CONFIG_PCI_SCAN_SHOW
-	#define CONFIG_PCIE_IMX
-	#define CONFIG_PCIE_IMX_PERST_GPIO	IMX_GPIO_NR(2, 28)
-	#undef CONFIG_PCIE_IMX_POWER_GPIO
-#endif
-
-/* USB Configs */
-#define CONFIG_CMD_USB
-#define CONFIG_USB_EHCI
-#define CONFIG_USB_EHCI_MX6
-#define CONFIG_USB_STORAGE
-#define CONFIG_USB_MAX_CONTROLLER_COUNT	2
-#define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
-#define CONFIG_MXC_USB_FLAGS		0
 
 /* Framebuffer */
-#define CONFIG_VIDEO
+
+/*#define CONFIG_VIDEO*/
 #define CONFIG_VIDEO_IPUV3
-#define CONFIG_CFB_CONSOLE
-#define CONFIG_VGA_AS_SINGLE_DEVICE
+/*#define CONFIG_CFB_CONSOLE*/
+/*#define CONFIG_VGA_AS_SINGLE_DEVICE
 #define CONFIG_SYS_CONSOLE_IS_IN_ENV
-#define CONFIG_SYS_CONSOLE_OVERWRITE_ROUTINE
+#define CONFIG_SYS_CONSOLE_OVERWRITE_ROUTINE*/
 #define CONFIG_VIDEO_BMP_RLE8
 #define CONFIG_SPLASH_SCREEN
 #define CONFIG_SPLASH_SCREEN_ALIGN
@@ -218,53 +401,15 @@
 #define CONFIG_IPUV3_CLK 260000000
 /* #define CONFIG_IMX_HDMI */
 
-#ifdef CONFIG_USE_BOOTSCRIPT
-#ifdef CONFIG_CMD_SATA
-	#define CONFIG_DRIVE_SATA "sata "
+
+
+
+
+
+#if defined(CONFIG_ANDROID_SUPPORT)
+#include "mx6sabreandroid_common.h"
 #else
-	#define CONFIG_DRIVE_SATA
-#endif
+#define CONFIG_USBD_HS
 
-#ifdef CONFIG_CMD_MMC
-	#define CONFIG_DRIVE_MMC "mmc "
-#else
-	#define CONFIG_DRIVE_MMC
-#endif
-
-#define CONFIG_DRIVE_TYPES CONFIG_DRIVE_MMC CONFIG_DRIVE_SATA
-
-#define CONFIG_EXTRA_ENV_SETTINGS \
-	"console=" CONFIG_CONSOLE_DEV "\0" \
-	"init_bootargs=setenv bootargs console=${console},${baudrate} \0" \
-	"fdt_addr=0x18000000\0" \
-	"bootcmd=for dtype in " CONFIG_DRIVE_TYPES \
-		"; do " \
-			"for disk in 1 0 ; do ${dtype} dev ${disk} ;" \
-				"for fs in fat ext2 ; do " \
-					"${fs}load " \
-						"${dtype} ${disk}:1 " \
-						"10008000 " \
-						"/ska_management.bootscript " \
-						"&& source 10008000 ; " \
-				"done ; " \
-			"done ; " \
-		"done; " \
-		"echo ; echo ska_management.bootscript not found ; " \
-		"setenv stdout serial\0" \
-	"do_upgrade=for dtype in " CONFIG_DRIVE_TYPES \
-		"; do " \
-		"for disk in 1 0 ; do ${dtype} dev ${disk} ;" \
-		     "for fs in fat ext2 ; do " \
-				"${fs}load ${dtype} ${disk}:1 10008000 " \
-					"/ska_management_upgrade.script " \
-					"&& source 10008000 ; " \
-			"done ; " \
-		"done ; " \
-	"done\0" 
-
-#else
-
-#error "It is supposed that you use the bootscript!!!"
-#endif
-
-#endif
+#endif /* CONFIG_ANDROID_SUPPORT */
+#endif                         /* __MX6QSABRE_COMMON_CONFIG_H */

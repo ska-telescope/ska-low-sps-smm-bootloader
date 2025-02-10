@@ -19,7 +19,7 @@
 #include <errno.h>
 #include <mmc.h>
 #include <usb.h>
-#include <usb/s3c_udc.h>
+#include <usb/dwc2_udc.h>
 #include <samsung/misc.h>
 #include "setup.h"
 
@@ -31,13 +31,6 @@ enum {
 	ODROID_TYPE_U3,
 	ODROID_TYPE_X2,
 	ODROID_TYPES,
-};
-
-static const char *mmc_regulators[] = {
-	"VDDQ_EMMC_1.8V",
-	"VDDQ_EMMC_2.8V",
-	"TFLASH_2.8V",
-	NULL,
 };
 
 void set_board_type(void)
@@ -73,7 +66,7 @@ const char *get_board_type(void)
 #ifdef CONFIG_SET_DFU_ALT_INFO
 char *get_dfu_alt_system(char *interface, char *devstr)
 {
-	return getenv("dfu_alt_system");
+	return env_get("dfu_alt_system");
 }
 
 char *get_dfu_alt_boot(char *interface, char *devstr)
@@ -428,8 +421,15 @@ int exynos_init(void)
 
 int exynos_power_init(void)
 {
+	const char *mmc_regulators[] = {
+		"VDDQ_EMMC_1.8V",
+		"VDDQ_EMMC_2.8V",
+		"TFLASH_2.8V",
+		NULL,
+	};
+
 	if (regulator_list_autoset(mmc_regulators, NULL, true))
-		error("Unable to init all mmc regulators");
+		pr_err("Unable to init all mmc regulators");
 
 	return 0;
 }
@@ -442,7 +442,7 @@ static int s5pc210_phy_control(int on)
 
 	ret = regulator_get_by_platname("VDD_UOTG_3.0V", &dev);
 	if (ret) {
-		error("Regulator get error: %d", ret);
+		pr_err("Regulator get error: %d", ret);
 		return ret;
 	}
 
@@ -450,10 +450,9 @@ static int s5pc210_phy_control(int on)
 		return regulator_set_mode(dev, OPMODE_ON);
 	else
 		return regulator_set_mode(dev, OPMODE_LPM);
-
 }
 
-struct s3c_plat_otg_data s5pc210_otg_data = {
+struct dwc2_plat_otg_data s5pc210_otg_data = {
 	.phy_control	= s5pc210_phy_control,
 	.regs_phy	= EXYNOS4X12_USBPHY_BASE,
 	.regs_otg	= EXYNOS4X12_USBOTG_BASE,
@@ -488,29 +487,29 @@ int board_usb_init(int index, enum usb_init_type init)
 
 	ret = regulator_get_by_platname("VCC_P3V3_2.85V", &dev);
 	if (ret) {
-		error("Regulator get error: %d", ret);
+		pr_err("Regulator get error: %d", ret);
 		return ret;
 	}
 
 	ret = regulator_set_enable(dev, true);
 	if (ret) {
-		error("Regulator %s enable setting error: %d", dev->name, ret);
+		pr_err("Regulator %s enable setting error: %d", dev->name, ret);
 		return ret;
 	}
 
 	ret = regulator_set_value(dev, 750000);
 	if (ret) {
-		error("Regulator %s value setting error: %d", dev->name, ret);
+		pr_err("Regulator %s value setting error: %d", dev->name, ret);
 		return ret;
 	}
 
 	ret = regulator_set_value(dev, 3300000);
 	if (ret) {
-		error("Regulator %s value setting error: %d", dev->name, ret);
+		pr_err("Regulator %s value setting error: %d", dev->name, ret);
 		return ret;
 	}
 #endif
 	debug("USB_udc_probe\n");
-	return s3c_udc_probe(&s5pc210_otg_data);
+	return dwc2_udc_probe(&s5pc210_otg_data);
 }
 #endif

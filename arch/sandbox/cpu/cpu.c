@@ -4,10 +4,13 @@
  */
 #define DEBUG
 #include <common.h>
-#include <dm/root.h>
+#include <dm.h>
+#include <errno.h>
+#include <linux/libfdt.h>
 #include <os.h>
 #include <asm/io.h>
 #include <asm/state.h>
+#include <dm/root.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -37,7 +40,10 @@ void sandbox_exit(void)
 /* delay x useconds */
 void __udelay(unsigned long usec)
 {
-	os_usleep(usec);
+	struct sandbox_state *state = state_get_current();
+
+	if (!state->skip_delays)
+		os_usleep(usec);
 }
 
 int cleanup_before_linux(void)
@@ -50,9 +56,19 @@ int cleanup_before_linux_select(int flags)
 	return 0;
 }
 
+void *phys_to_virt(phys_addr_t paddr)
+{
+	return (void *)(gd->arch.ram_buf + paddr);
+}
+
+phys_addr_t virt_to_phys(void *vaddr)
+{
+	return (phys_addr_t)((uint8_t *)vaddr - gd->arch.ram_buf);
+}
+
 void *map_physmem(phys_addr_t paddr, unsigned long len, unsigned long flags)
 {
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(CONFIG_SPL_BUILD)
 	unsigned long plen = len;
 	void *ptr;
 
@@ -60,14 +76,14 @@ void *map_physmem(phys_addr_t paddr, unsigned long len, unsigned long flags)
 	if (enable_pci_map && !pci_map_physmem(paddr, &len, &map_dev, &ptr)) {
 		if (plen != len) {
 			printf("%s: Warning: partial map at %x, wanted %lx, got %lx\n",
-			       __func__, paddr, len, plen);
+			       __func__, (uint)paddr, len, plen);
 		}
 		map_len = len;
 		return ptr;
 	}
 #endif
 
-	return (void *)(gd->arch.ram_buf + paddr);
+	return phys_to_virt(paddr);
 }
 
 void unmap_physmem(const void *vaddr, unsigned long flags)
@@ -91,6 +107,10 @@ phys_addr_t map_to_sysmem(const void *ptr)
 }
 
 void flush_dcache_range(unsigned long start, unsigned long stop)
+{
+}
+
+void invalidate_dcache_range(unsigned long start, unsigned long stop)
 {
 }
 
@@ -132,4 +152,15 @@ done:
 	gd->fdt_blob = blob;
 
 	return 0;
+}
+
+ulong timer_get_boot_us(void)
+{
+	static uint64_t base_count;
+	uint64_t count = os_get_nsec();
+
+	if (!base_count)
+		base_count = count;
+
+	return (count - base_count) / 1000;
 }

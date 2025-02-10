@@ -41,6 +41,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+bootm_headers_t images;		/* pointers to os/initrd/fdt images */
+
 static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 				   char * const argv[], bootm_headers_t *images,
 				   ulong *os_data, ulong *os_len);
@@ -53,8 +55,8 @@ static void boot_start_lmb(bootm_headers_t *images)
 
 	lmb_init(&images->lmb);
 
-	mem_start = getenv_bootm_low();
-	mem_size = getenv_bootm_size();
+	mem_start = env_get_bootm_low();
+	mem_size = env_get_bootm_size();
 
 	lmb_add(&images->lmb, (phys_addr_t)mem_start, mem_size);
 
@@ -70,7 +72,7 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
 	memset((void *)&images, 0, sizeof(images));
-	images.verify = getenv_yesno("verify");
+	images.verify = env_get_yesno("verify");
 
 	boot_start_lmb(&images);
 
@@ -108,7 +110,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		images.os.arch = image_get_arch(os_hdr);
 		break;
 #endif
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
 		if (fit_image_get_type(images.fit_hdr_os,
 				       images.fit_noffset_os,
@@ -180,7 +182,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		/* Kernel entry point is the setup.bin */
 	} else if (images.legacy_hdr_valid) {
 		images.ep = image_get_ep(&images.legacy_hdr_os_copy);
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	} else if (images.fit_uname_os) {
 		int ret;
 
@@ -201,7 +203,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		images.ep += images.os.load;
 	}
 
-	images.os.start = (ulong)os_hdr;
+	images.os.start = map_to_sysmem(os_hdr);
 
 	return 0;
 }
@@ -234,7 +236,7 @@ int bootm_find_images(int flag, int argc, char * const argv[])
 		return 1;
 	}
 
-#if defined(CONFIG_OF_LIBFDT)
+#if IMAGE_ENABLE_OF_LIBFDT
 	/* find flattened device tree */
 	ret = boot_get_fdt(flag, argc, argv, IH_ARCH_DEFAULT, &images,
 			   &images.ft_addr, &images.ft_len);
@@ -245,7 +247,17 @@ int bootm_find_images(int flag, int argc, char * const argv[])
 	set_working_fdt_addr((ulong)images.ft_addr);
 #endif
 
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
+#if defined(CONFIG_FPGA)
+	/* find bitstreams */
+	ret = boot_get_fpga(argc, argv, &images, IH_ARCH_DEFAULT,
+			    NULL, NULL);
+	if (ret) {
+		printf("FPGA image is corrupted or invalid\n");
+		return 1;
+	}
+#endif
+
 	/* find all of the loadables */
 	ret = boot_get_loadable(argc, argv, &images, IH_ARCH_DEFAULT,
 			       NULL, NULL);
@@ -435,7 +447,7 @@ static int bootm_load_os(bootm_headers_t *images, unsigned long *load_end,
 		bootstage_error(BOOTSTAGE_ID_DECOMP_IMAGE);
 		return err;
 	}
-	flush_cache(load, (*load_end - load) * sizeof(ulong));
+	flush_cache(load, ALIGN(*load_end - load, ARCH_DMA_MINALIGN));
 
 	debug("   kernel loaded at 0x%08lx, end = 0x%08lx\n", load, *load_end);
 	bootstage_mark(BOOTSTAGE_ID_KERNEL_LOADED);
@@ -512,7 +524,7 @@ static void fixup_silent_linux(void)
 {
 	char *buf;
 	const char *env_val;
-	char *cmdline = getenv("bootargs");
+	char *cmdline = env_get("bootargs");
 	int want_silent;
 
 	/*
@@ -522,7 +534,7 @@ static void fixup_silent_linux(void)
 	 *	yes - we always fixup
 	 *	unset - we rely on the console silent flag
 	 */
-	want_silent = getenv_yesno("silent_linux");
+	want_silent = env_get_yesno("silent_linux");
 	if (want_silent == 0)
 		return;
 	else if (want_silent == -1 && !(gd->flags & GD_FLG_SILENT))
@@ -557,7 +569,7 @@ static void fixup_silent_linux(void)
 		env_val = CONSOLE_ARG;
 	}
 
-	setenv("bootargs", env_val);
+	env_set("bootargs", env_val);
 	debug("after silent fix-up: %s\n", env_val);
 	free(buf);
 }
@@ -607,10 +619,8 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (!ret && (states & BOOTM_STATE_FINDOS))
 		ret = bootm_find_os(cmdtp, flag, argc, argv);
 
-	if (!ret && (states & BOOTM_STATE_FINDOTHER)) {
+	if (!ret && (states & BOOTM_STATE_FINDOTHER))
 		ret = bootm_find_other(cmdtp, flag, argc, argv);
-		argc = 0;	/* consume the args */
-	}
 
 	/* Load the OS */
 	if (!ret && (states & BOOTM_STATE_LOADOS)) {
@@ -625,10 +635,6 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 			goto err;
 		else if (ret == BOOTM_ERR_OVERLAP)
 			ret = 0;
-#if defined(CONFIG_SILENT_CONSOLE) && !defined(CONFIG_SILENT_U_BOOT_ONLY)
-		if (images->os.os == IH_OS_LINUX)
-			fixup_silent_linux();
-#endif
 	}
 
 	/* Relocate the ramdisk */
@@ -639,12 +645,12 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		ret = boot_ramdisk_high(&images->lmb, images->rd_start,
 			rd_len, &images->initrd_start, &images->initrd_end);
 		if (!ret) {
-			setenv_hex("initrd_start", images->initrd_start);
-			setenv_hex("initrd_end", images->initrd_end);
+			env_set_hex("initrd_start", images->initrd_start);
+			env_set_hex("initrd_end", images->initrd_end);
 		}
 	}
 #endif
-#if defined(CONFIG_OF_LIBFDT) && defined(CONFIG_LMB)
+#if IMAGE_ENABLE_OF_LIBFDT && defined(CONFIG_LMB)
 	if (!ret && (states & BOOTM_STATE_FDT)) {
 		boot_fdt_add_mem_rsv_regions(&images->lmb, images->ft_addr);
 		ret = boot_relocate_fdt(&images->lmb, &images->ft_addr,
@@ -668,18 +674,24 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		return 1;
 	}
 
+
 	/* Call various other states that are not generally used */
 	if (!ret && (states & BOOTM_STATE_OS_CMDLINE))
 		ret = boot_fn(BOOTM_STATE_OS_CMDLINE, argc, argv, images);
 	if (!ret && (states & BOOTM_STATE_OS_BD_T))
 		ret = boot_fn(BOOTM_STATE_OS_BD_T, argc, argv, images);
-	if (!ret && (states & BOOTM_STATE_OS_PREP))
+	if (!ret && (states & BOOTM_STATE_OS_PREP)) {
+#if defined(CONFIG_SILENT_CONSOLE) && !defined(CONFIG_SILENT_U_BOOT_ONLY)
+		if (images->os.os == IH_OS_LINUX)
+			fixup_silent_linux();
+#endif
 		ret = boot_fn(BOOTM_STATE_OS_PREP, argc, argv, images);
+	}
 
 #ifdef CONFIG_TRACE
 	/* Pretend to run the OS, then run a user command */
 	if (!ret && (states & BOOTM_STATE_OS_FAKE_GO)) {
-		char *cmd_list = getenv("fakegocmd");
+		char *cmd_list = env_get("fakegocmd");
 
 		ret = boot_selected_os(argc, argv, BOOTM_STATE_OS_FAKE_GO,
 				images, boot_fn);
@@ -788,7 +800,7 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 	const void *buf;
 	const char	*fit_uname_config = NULL;
 	const char	*fit_uname_kernel = NULL;
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	int		os_noffset;
 #endif
 
@@ -797,9 +809,6 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 					      &fit_uname_kernel);
 
 	bootstage_mark(BOOTSTAGE_ID_CHECK_MAGIC);
-
-	/* copy from dataflash if needed */
-	img_addr = genimg_get_image(img_addr);
 
 	/* check image type, for FIT images get FIT kernel node */
 	*os_data = *os_len = 0;
@@ -849,7 +858,7 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 		bootstage_mark(BOOTSTAGE_ID_DECOMP_IMAGE);
 		break;
 #endif
-#if defined(CONFIG_FIT)
+#if IMAGE_ENABLE_FIT
 	case IMAGE_FORMAT_FIT:
 		os_noffset = fit_image_load(images, img_addr,
 				&fit_uname_kernel, &fit_uname_config,

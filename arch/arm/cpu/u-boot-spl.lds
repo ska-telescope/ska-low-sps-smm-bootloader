@@ -32,15 +32,15 @@ SECTIONS
 	}
 
 	. = ALIGN(4);
-#ifdef CONFIG_SPL_DM
 	.u_boot_list : {
-		KEEP(*(SORT(.u_boot_list_*_driver_*)));
-		KEEP(*(SORT(.u_boot_list_*_uclass_*)));
+		KEEP(*(SORT(.u_boot_list*)));
 	}
-#endif
-	. = .;
-	.u_boot_list : {
-		KEEP(*(SORT(.u_boot_list*_i2c_*)));
+
+	. = ALIGN(4);
+	.binman_sym_table : {
+		__binman_sym_start = .;
+		KEEP(*(SORT(.binman_sym*)));
+		__binman_sym_end = .;
 	}
 
 	. = ALIGN(4);

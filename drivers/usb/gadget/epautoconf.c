@@ -7,13 +7,13 @@
  *
  * SPDX-License-Identifier:	GPL-2.0+
  *
- * Ported to U-boot by: Thomas Smits <ts.smits@gmail.com> and
+ * Ported to U-Boot by: Thomas Smits <ts.smits@gmail.com> and
  *                      Remy Bohmer <linux@bohmer.net>
  */
 
 #include <common.h>
 #include <linux/usb/ch9.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <linux/usb/gadget.h>
 #include <asm/unaligned.h>
 #include "gadget_chips.h"
@@ -170,6 +170,10 @@ static int ep_matches(
 			size = 64;
 		put_unaligned(cpu_to_le16(size), &desc->wMaxPacketSize);
 	}
+
+	if (gadget->ops->match_ep)
+		return gadget->ops->match_ep(gadget, ep, desc);
+
 	return 1;
 }
 
@@ -261,6 +265,7 @@ struct usb_ep *usb_ep_autoconfig(
 		ep = find_ep(gadget, "ep1-bulk");
 		if (ep && ep_matches(gadget, ep, desc))
 			return ep;
+#ifndef CONFIG_SPL_BUILD
 	} else if (gadget_is_dwc3(gadget)) {
 		const char *name = NULL;
 		/*
@@ -283,6 +288,7 @@ struct usb_ep *usb_ep_autoconfig(
 			ep = find_ep(gadget, name);
 		if (ep && ep_matches(gadget, ep, desc))
 			return ep;
+#endif
 	}
 
 	/* Second, look at endpoints until an unclaimed one looks usable */

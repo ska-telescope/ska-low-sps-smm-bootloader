@@ -18,6 +18,12 @@
 #include <asm/byteorder.h>
 #endif
 
+int bmp_display(ulong addr, int x, int y);
+struct bmp_image *gunzip_bmp(unsigned long addr, unsigned long *lenp,
+			     void **alloc_addr);
+
+#ifndef CONFIG_DM_VIDEO
+
 extern char lcd_is_enabled;
 extern int lcd_line_length;
 extern struct vidinfo panel_info;
@@ -25,10 +31,7 @@ extern struct vidinfo panel_info;
 void lcd_ctrl_init(void *lcdbase);
 void lcd_enable(void);
 void lcd_setcolreg(ushort regno, ushort red, ushort green, ushort blue);
-
-struct bmp_image *gunzip_bmp(unsigned long addr, unsigned long *lenp,
-			     void **alloc_addr);
-int bmp_display(ulong addr, int x, int y);
+void lcd_initcolregs (void);
 
 /**
  * Set whether we need to flush the dcache when changing the LCD image. This
@@ -38,15 +41,71 @@ int bmp_display(ulong addr, int x, int y);
  */
 void lcd_set_flush_dcache(int flush);
 
-#if defined CONFIG_MPC823
-#include <mpc823_lcd.h>
-#elif defined(CONFIG_CPU_PXA25X) || defined(CONFIG_CPU_PXA27X) || \
+#if defined(CONFIG_CPU_PXA25X) || defined(CONFIG_CPU_PXA27X) || \
 	defined CONFIG_CPU_MONAHANS
 #include <pxa_lcd.h>
 #elif defined(CONFIG_ATMEL_LCD) || defined(CONFIG_ATMEL_HLCD)
 #include <atmel_lcd.h>
 #elif defined(CONFIG_EXYNOS_FB)
 #include <exynos_lcd.h>
+#elif defined(CONFIG_MXC_EPDC)
+
+struct waveform_modes {
+	int mode_init;
+	int mode_du;
+	int mode_gc4;
+	int mode_gc8;
+	int mode_gc16;
+	int mode_gc32;
+};
+
+struct epdc_timing_params {
+    int vscan_holdoff;
+    int sdoed_width;
+    int sdoed_delay;
+    int sdoez_width;
+    int sdoez_delay;
+    int gdclk_hp_offs;
+    int gdsp_offs;
+    int gdoe_offs;
+    int gdclk_offs;
+    int num_ce;
+};
+
+struct epdc_data_struct {
+	/* EPDC buffer pointers */
+	u_long working_buf_addr;
+	u_long waveform_buf_addr;
+
+	/* Waveform mode definitions */
+	struct waveform_modes wv_modes;
+	struct epdc_timing_params epdc_timings;
+};
+
+typedef struct vidinfo {
+	u_long vl_refresh;      /* Refresh Rate Hz */
+	u_long vl_row;          /* resolution in x */
+	u_long vl_col;          /* resolution in y */
+	u_long vl_rot;
+	u_long vl_pixclock;     /* pixel clock in picoseconds */
+	u_long vl_left_margin;  /* Horizontal back porch */
+	u_long vl_right_margin; /* Horizontal front porch */
+	u_long vl_upper_margin; /* Vertical back porch */
+	u_long vl_lower_margin; /* Vertical front porch */
+	u_long vl_hsync;        /* Horizontal sync pulse length */
+	u_long vl_vsync;        /* Vertical sync pulse length */
+	u_long vl_sync;         /* Polarity on data enable */
+	u_long vl_mode;         /* Video Mode */
+	u_long vl_flag;
+	u_char  vl_bpix;
+	ushort  *cmap;
+	struct epdc_data_struct epdc_data;
+} vidinfo_t;
+
+static __maybe_unused ushort *configuration_get_cmap(void)
+{
+	return panel_info.cmap;
+}
 #else
 typedef struct vidinfo {
 	ushort	vl_col;		/* Number of columns (i.e. 160) */
@@ -163,6 +222,16 @@ void lcd_sync(void);
 #define LCD_BPP			LCD_COLOR8
 #endif
 
+#if LCD_BPP == LCD_MONOCHROME
+# define COLOR_MASK(c)		((c)	  | (c) << 1 | (c) << 2 | (c) << 3 | \
+				 (c) << 4 | (c) << 5 | (c) << 6 | (c) << 7)
+#elif (LCD_BPP == LCD_COLOR8) || (LCD_BPP == LCD_COLOR16) || \
+	(LCD_BPP == LCD_COLOR32)
+# define COLOR_MASK(c)		(c)
+#else
+#error Unsupported LCD BPP.
+#endif
+
 #ifndef LCD_DF
 #define LCD_DF			1
 #endif
@@ -171,7 +240,14 @@ void lcd_sync(void);
 #define NBITS(bit_code)		(1 << (bit_code))
 #define NCOLORS(bit_code)	(1 << NBITS(bit_code))
 
-#if LCD_BPP == LCD_COLOR8
+#if LCD_BPP == LCD_MONOCHROME
+/*
+ * Simple black/white definitions
+ */
+# define CONSOLE_COLOR_BLACK	0
+# define CONSOLE_COLOR_WHITE	1	/* Must remain last / highest	*/
+
+#elif LCD_BPP == LCD_COLOR8
 # define CONSOLE_COLOR_BLACK	0
 # define CONSOLE_COLOR_RED	1
 # define CONSOLE_COLOR_GREEN	2
@@ -193,8 +269,15 @@ void lcd_sync(void);
 #define CONSOLE_COLOR_WHITE	0x00ffffff	/* Must remain last / highest */
 #define NBYTES(bit_code)	(NBITS(bit_code) >> 3)
 #else /* 16bpp color definitions */
-#define CONSOLE_COLOR_BLACK	0x0000
-#define CONSOLE_COLOR_WHITE	0xffff		/* Must remain last / highest */
+# define CONSOLE_COLOR_BLACK	0x0000
+# define CONSOLE_COLOR_RED	0xF800
+# define CONSOLE_COLOR_GREEN	0x07E0
+# define CONSOLE_COLOR_YELLOW	0xFFE0
+# define CONSOLE_COLOR_BLUE	0x001F
+# define CONSOLE_COLOR_MAGENTA	0xF81F
+# define CONSOLE_COLOR_CYAN	0x07FF
+# define CONSOLE_COLOR_GREY	0xC618
+# define CONSOLE_COLOR_WHITE	0xffff		/* Must remain last / highest */
 #endif /* color definitions */
 
 #if LCD_BPP == LCD_COLOR16
@@ -208,5 +291,7 @@ void lcd_sync(void);
 #ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
 #endif
+
+#endif /* !CONFIG_DM_VIDEO */
 
 #endif	/* _LCD_H_ */

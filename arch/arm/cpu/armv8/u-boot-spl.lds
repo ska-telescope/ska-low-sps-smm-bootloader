@@ -39,6 +39,14 @@ SECTIONS
 		*(.data*)
 	} >.sram
 
+#ifdef CONFIG_RECOVER_SPL_DATA_SECTION
+	.data_save : {
+		*(.__data_save_start)
+		. = SIZEOF(.data);
+		*(.__data_save_end)
+	} >.sram
+#endif
+
 	.u_boot_list : {
 		. = ALIGN(8);
 		KEEP(*(SORT(.u_boot_list*)));
@@ -54,17 +62,19 @@ SECTIONS
 		*(.__end)
 	} >.sram
 
-	.bss_start : {
+	_image_binary_end = .;
+
+	.bss_start (NOLOAD) : {
 		. = ALIGN(8);
 		KEEP(*(.__bss_start));
 	} >.sdram
 
-	.bss : {
+	.bss (NOLOAD) : {
 		*(.bss*)
 		 . = ALIGN(8);
 	} >.sdram
 
-	.bss_end : {
+	.bss_end (NOLOAD) : {
 		KEEP(*(.__bss_end));
 	} >.sdram
 
